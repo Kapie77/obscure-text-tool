@@ -1,5 +1,5 @@
 Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
-python extractor.py texwii_wii.dic
+```python extractor.py texwii_wii.dic```
 
 # (Wii)
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
@@ -18,7 +18,7 @@ As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena image
 ## Paletas:
 - Armazenadas após os dados da textura
 - Formato mais comum: RGB565
-- 
+
 ## Observação:
 Decodificação incorreta do layout de tiles resulta em:
 - imagens embaralhadas
