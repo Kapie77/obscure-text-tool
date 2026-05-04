@@ -19,6 +19,20 @@ As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena image
 - Armazenadas após os dados da textura
 - Formato mais comum: RGB565
 
+## Caso especial: texturas tipo a_medallion
+Algumas texturas (ex: a_medallion001, a_medallion002, fx_npc_die, fx_elec_bolt) utilizam um layout ligeiramente diferente do padrão.
+
+### Diferenças:
+- Offset dos dados:
+```data_offset = p + 24```
+(em vez de p + 28)
+
+- Formato:
+```GX = 8 (C4)```
+
+- Paleta:
+```RGB565 (pal_format = 1)```
+
 ## Observação:
 Decodificação incorreta do layout de tiles resulta em:
 - imagens embaralhadas
