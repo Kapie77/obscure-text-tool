@@ -702,7 +702,7 @@ def parse_pc_dic(path, out_folder):
         img = None
 
         if fmt == 21:
-            img = decode_pc_rgba8(first_mip, width, height)
+            img = decode_pc_rgba8_bgra(first_mip, width, height)
 
         elif fmt == 23:
             img = decode_pc_r5g6b5(first_mip, width, height)
