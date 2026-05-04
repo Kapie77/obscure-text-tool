@@ -39,9 +39,9 @@ def is_valid_texture_entry(data, off):
     gx = read_be_u32(data, p + 16)
     size = read_be_u32(data, p + 24)
 
-    if width not in [4,8,16,32,64,128,256,512,1024]:
+    if not is_power_of_two(width) or width > 1024:
         return False
-    if height not in [4,8,16,32,64,128,256,512,1024]:
+    if not is_power_of_two(height) or height > 1024:
         return False
     if gx not in [1,3,5,6,8,9,14]:
         return False
@@ -52,19 +52,8 @@ def is_valid_texture_entry(data, off):
 
     return True
 
-# ==============================
-# Função de deswizzle (morton)
-# ==============================
-def morton2D(x, y):
-    def part1by1(n):
-        n &= 0xFFFF
-        n = (n | (n << 8)) & 0x00FF00FF
-        n = (n | (n << 4)) & 0x0F0F0F0F
-        n = (n | (n << 2)) & 0x33333333
-        n = (n | (n << 1)) & 0x55555555
-        return n
-
-    return part1by1(x) | (part1by1(y) << 1)
+def is_power_of_two(v):
+        return v != 0 and (v & (v - 1)) == 0
 
 # ==============================
 # Decoders
@@ -85,19 +74,8 @@ def offset_c4(x, y, width):
 
     return byte_index
 
-def offset_bpp4(x, y, w):
-    return (((y & ~3) * w) + ((x & ~7) * 4) + ((y & 3) * 8) + (x & 7)) >> 1
-
 def offset_bpp8(x, y, w):
     return ((y & ~3) * w) + ((x & ~7) * 4) + ((y & 3) * 8) + (x & 7)
-
-def offset_bpp16(x, y, w):
-    blocks_x = (w + 3) >> 2
-    xb = x >> 2
-    yb = y >> 2
-    xp = x & 3
-    yp = y & 3
-    return ((yb * blocks_x + xb) << 5) + ((yp << 3) + (xp << 1))
 
 
 def decode_ia8(data, width, height):
@@ -125,10 +103,10 @@ def decode_ia8(data, width, height):
 
     return img
 
-# == funçlão nova
+
 def align(val, alignment):
     return (val + alignment - 1) & ~(alignment - 1)
-# ==
+    
 
 def decode_rgba8(data, width, height):
     img = Image.new("RGBA", (width, height))
@@ -230,7 +208,8 @@ def decode_c4(data, palette_data, width, height, pal_format):
 
     for y in range(height):
         for x in range(width):
-            off = offset_c4(x, y, width)
+            sw = align(width, 8)
+            off = offset_c4(x, y, sw)
 
             if off >= len(data):
                 continue
@@ -247,9 +226,30 @@ def decode_c4(data, palette_data, width, height, pal_format):
 
     return img
 
-# ================
-# DECODE NOVO
-# ================
+def decode_c8(data, palette_data, width, height, pal_format):
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    sw = align(width, 8)
+    pal = build_palette(palette_data, pal_format)
+
+    for y in range(height):
+        for x in range(width):
+            off = offset_bpp8(x, y, sw)
+
+            if off >= len(data):
+                continue
+
+            idx = data[off]
+
+            if idx < len(pal):
+                pixels[x, y] = pal[idx]
+
+    return img
+
+# ====================
+#   BUILD PALETTE
+# ====================
 def build_palette(palette_data, palette_format):
     pal = []
 
@@ -283,56 +283,17 @@ def build_palette(palette_data, palette_format):
 
     return pal
 
-def build_palette_rgb5a3(palette_data):
-    pal = []
+# =============
+# READ PALETTE
+# ==============
+def read_palette(data, offset):
+    pal_count = read_be_u32(data, offset)
+    pal_format = read_be_u32(data, offset + 4)
+    pal_size = read_be_u32(data, offset + 8)
 
-    count = len(palette_data) // 2
+    palette_data = data[offset + 12 : offset + 12 + pal_size]
 
-    for i in range(count):
-        p = (palette_data[i*2] << 8) | palette_data[i*2 + 1]
-
-        if p & 0x8000:
-            r = ((p >> 10) & 0x1F) * 255 // 31
-            g = ((p >> 5) & 0x1F) * 255 // 31
-            b = (p & 0x1F) * 255 // 31
-            a = 255
-        else:
-            a = ((p >> 12) & 0x7) * 255 // 7
-            r = ((p >> 8) & 0xF) * 255 // 15
-            g = ((p >> 4) & 0xF) * 255 // 15
-            b = (p & 0xF) * 255 // 15
-
-        pal.append((r, g, b, a))
-
-    return pal
-
-
-def decode_c8(data, palette_data, width, height, pal_format):
-    img = Image.new("RGBA", (width, height))
-    pixels = img.load()
-
-    sw = align(width, 8)
-    sh = align(height, 4)
-    pal = build_palette(palette_data, pal_format)
-
-    for y in range(height):
-        for x in range(width):
-            off = offset_bpp8(x, y, sw)
-
-            if off >= len(data):
-                continue
-
-            idx = data[off]
-
-            if idx < len(pal):
-                pixels[x, y] = pal[idx]
-
-    return img
-
-# =====================
-# BUILD PALETTE
-# =====================
-
+    return pal_format, palette_data
 
 # ==============================
 # CMPR (DXT1-like) decoder
@@ -408,6 +369,14 @@ def decode_cmpr(data, width, height):
 # Main parser
 # ==============================
 
+DECODERS = {
+    1: decode_i8,
+    3: decode_ia8,
+    5: decode_rgb5a3,
+    6: decode_rgba8,
+    14: decode_cmpr,
+}
+
 def parse_wii_dic(path, out_folder):
     with open(path, "rb") as f:
         data = f.read()
@@ -470,42 +439,20 @@ def parse_wii_dic(path, out_folder):
         # ----------------------------
         img = None
 
-        if gx == 1:
-            img = decode_i8(tex_data, width, height)
-
-        elif gx == 3:
-            img = decode_ia8(tex_data, width, height)
-
-        elif gx == 5:
-            img = decode_rgb5a3(tex_data, width, height)
-
-        elif gx == 6:
-            img = decode_rgba8(tex_data, width, height)
+        if gx in DECODERS:
+            img = DECODERS[gx](tex_data, width, height)
 
         elif gx == 8:  # C4
             pal_off = data_offset + size
-
-            pal_count = read_be_u32(data, pal_off)
-            pal_format = read_be_u32(data, pal_off + 4)
-            pal_size = read_be_u32(data, pal_off + 8)
-
-            palette_data = data[pal_off + 12 : pal_off + 12 + pal_size]
+            pal_format, palette_data = read_palette(data, pal_off)
 
             img = decode_c4(tex_data, palette_data, width, height, pal_format)
 
         elif gx == 9:  # C8
             pal_off = data_offset + size
-
-            pal_count = read_be_u32(data, pal_off)
-            pal_format = read_be_u32(data, pal_off + 4)
-            pal_size = read_be_u32(data, pal_off + 8)
-
-            palette_data = data[pal_off + 12 : pal_off + 12 + pal_size]
+            pal_format, palette_data = read_palette(data, pal_off)
 
             img = decode_c8(tex_data, palette_data, width, height, pal_format)
-
-        elif gx == 14:
-            img = decode_cmpr(tex_data, width, height)
 
         if img:
             out_path = os.path.join(out_folder, name + ".png")
