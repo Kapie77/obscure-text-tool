@@ -92,7 +92,6 @@ def decode_ia8(data, width, height):
     pixels = img.load()
 
     sw = (width + 3) & ~3
-    sh = (height + 3) & ~3
 
     for y in range(height):
         for x in range(width):
@@ -101,8 +100,8 @@ def decode_ia8(data, width, height):
             if off + 1 >= len(data):
                 continue
 
-            i = data[off]
-            a = data[off + 1]
+            a = data[off]
+            i = data[off + 1]
 
             pixels[x, y] = (i, i, i, a)
 
@@ -164,7 +163,8 @@ def decode_rgb5a3(data, width, height):
 
     for y in range(height):
         for x in range(width):
-            index = offset_bpp16(x, y, width)
+            sw = (width + 3) & ~3
+            index = offset_bpp16(x, y, sw)
 
             if index + 1 >= len(data):
                 continue
@@ -373,6 +373,23 @@ def parse_wii_dic(path, out_folder):
 
         tex_data = data[data_offset:data_offset+size]
 
+        # ----------------------------
+        # descobrir next_offset ANTES
+        # ----------------------------
+        min_next = data_offset + size
+        next_offset = None
+
+        for cand in range(min_next, min(min_next + 4096, len(data))):
+            if is_valid_texture_entry(data, cand):
+                next_offset = cand
+                break
+
+        if next_offset is None:
+            next_offset = len(data)  # última textura fallback
+
+        # ----------------------------
+        # decode
+        # ----------------------------
         img = None
 
         if gx == 1:
@@ -389,29 +406,19 @@ def parse_wii_dic(path, out_folder):
 
         elif gx == 8:  # C4
             pal_off = data_offset + size
-
-            pal_count = read_be_u32(data, pal_off)
-            pal_fmt   = read_be_u32(data, pal_off + 4)
-            pal_size  = read_be_u32(data, pal_off + 8)
-
-            palette_data = data[pal_off + 12 : pal_off + 12 + pal_size]
+            palette_data = data[pal_off:next_offset]
 
             img = decode_c4(tex_data, palette_data, width, height)
 
-            size += 12 + pal_size  # 👈 IMPORTANTÍSSIMO
+            size = next_offset - data_offset
 
         elif gx == 9:  # C8
             pal_off = data_offset + size
-
-            pal_count = read_be_u32(data, pal_off)
-            pal_fmt   = read_be_u32(data, pal_off + 4)
-            pal_size  = read_be_u32(data, pal_off + 8)
-
-            palette_data = data[pal_off + 12 : pal_off + 12 + pal_size]
+            palette_data = data[pal_off:next_offset]
 
             img = decode_c8(tex_data, palette_data, width, height)
 
-            size += 12 + pal_size  # 👈 CRÍTICO
+            size = next_offset - data_offset
 
         elif gx == 14:
             img = decode_cmpr(tex_data, width, height)
@@ -427,18 +434,6 @@ def parse_wii_dic(path, out_folder):
             print("[!] Saved RAW:", out_path)
 
         # encontrar próxima textura
-        min_next = data_offset + size
-        next_offset = None
-
-        for cand in range(min_next, min(min_next + 4096, len(data))):
-            if is_valid_texture_entry(data, cand):
-                next_offset = cand
-                break
-
-        if next_offset is None:
-            print("[!] Fim do arquivo")
-            break
-
         offset = next_offset
 
 
