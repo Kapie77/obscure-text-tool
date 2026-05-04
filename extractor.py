@@ -70,13 +70,26 @@ def morton2D(x, y):
 # Decoders
 # ==============================
 
+def offset_c4(x, y, width):
+    tile_x = x // 8
+    tile_y = y // 8
+
+    tiles_per_row = width // 8
+
+    tile_index = tile_y * tiles_per_row + tile_x
+
+    in_tile_x = x % 8
+    in_tile_y = y % 8
+
+    byte_index = tile_index * 32 + (in_tile_y * 4) + (in_tile_x // 2)
+
+    return byte_index
+
+def offset_bpp4(x, y, w):
+    return (((y & ~3) * w) + ((x & ~7) * 4) + ((y & 3) * 8) + (x & 7)) >> 1
+
 def offset_bpp8(x, y, w):
-    blocks_x = (w + 7) >> 3
-    xb = x >> 3
-    yb = y >> 2
-    xp = x & 7
-    yp = y & 3
-    return ((yb * blocks_x + xb) << 5) + ((yp << 3) + xp)
+    return ((y & ~3) * w) + ((x & ~7) * 4) + ((y & 3) * 8) + (x & 7)
 
 def offset_bpp16(x, y, w):
     blocks_x = (w + 3) >> 2
@@ -91,22 +104,31 @@ def decode_ia8(data, width, height):
     img = Image.new("RGBA", (width, height))
     pixels = img.load()
 
-    sw = (width + 3) & ~3
+    pos = 0
 
-    for y in range(height):
-        for x in range(width):
-            off = offset_bpp16(x, y, sw)
+    for by in range(0, height, 4):
+        for bx in range(0, width, 4):
+            for y in range(4):
+                for x in range(4):
+                    if pos + 1 >= len(data):
+                        return img
 
-            if off + 1 >= len(data):
-                continue
+                    px = bx + x
+                    py = by + y
 
-            a = data[off]
-            i = data[off + 1]
+                    a = data[pos]
+                    i = data[pos + 1]
+                    pos += 2
 
-            pixels[x, y] = (i, i, i, a)
+                    if px < width and py < height:
+                        pixels[px, py] = (i, i, i, a)
 
     return img
 
+# == funçlão nova
+def align(val, alignment):
+    return (val + alignment - 1) & ~(alignment - 1)
+# ==
 
 def decode_rgba8(data, width, height):
     img = Image.new("RGBA", (width, height))
@@ -143,17 +165,23 @@ def decode_i8(data, width, height):
     img = Image.new("RGBA", (width, height))
     pixels = img.load()
 
-    sw = (width + 7) & ~7
+    pos = 0
 
-    for y in range(height):
-        for x in range(width):
-            index = offset_bpp8(x, y, sw)
+    for by in range(0, height, 4):
+        for bx in range(0, width, 8):
+            for y in range(4):
+                for x in range(8):
+                    if pos >= len(data):
+                        return img
 
-            if index >= len(data):
-                continue
+                    px = bx + x
+                    py = by + y
 
-            v = data[index]
-            pixels[x, y] = (v, v, v, 255)
+                    v = data[pos]
+                    pos += 1
+
+                    if px < width and py < height:
+                        pixels[px, py] = (v, v, v, 255)
 
     return img
 
@@ -161,65 +189,100 @@ def decode_rgb5a3(data, width, height):
     img = Image.new("RGBA", (width, height))
     pixels = img.load()
 
-    for y in range(height):
-        for x in range(width):
-            sw = (width + 3) & ~3
-            index = offset_bpp16(x, y, sw)
+    pos = 0
 
-            if index + 1 >= len(data):
-                continue
+    for by in range(0, height, 4):
+        for bx in range(0, width, 4):
+            for y in range(4):
+                for x in range(4):
+                    if pos + 1 >= len(data):
+                        return img
 
-            p = (data[index] << 8) | data[index+1]
+                    px = bx + x
+                    py = by + y
 
-            if p & 0x8000:
-                r = ((p >> 10) & 0x1F) * 255 // 31
-                g = ((p >> 5) & 0x1F) * 255 // 31
-                b = (p & 0x1F) * 255 // 31
-                a = 255
-            else:
-                a = ((p >> 12) & 0x7) * 255 // 7
-                r = ((p >> 8) & 0xF) * 255 // 15
-                g = ((p >> 4) & 0xF) * 255 // 15
-                b = (p & 0xF) * 255 // 15
+                    p = (data[pos] << 8) | data[pos + 1]
+                    pos += 2
 
-            pixels[x, y] = (r, g, b, a)
+                    if px >= width or py >= height:
+                        continue
+
+                    if p & 0x8000:
+                        r = ((p >> 10) & 0x1F) * 255 // 31
+                        g = ((p >> 5) & 0x1F) * 255 // 31
+                        b = (p & 0x1F) * 255 // 31
+                        a = 255
+                    else:
+                        a = ((p >> 12) & 0x7) * 255 // 7
+                        r = ((p >> 8) & 0xF) * 255 // 15
+                        g = ((p >> 4) & 0xF) * 255 // 15
+                        b = (p & 0xF) * 255 // 15
+
+                    pixels[px, py] = (r, g, b, a)
 
     return img
 
-def decode_c4(data, palette_data, width, height):
+def decode_c4(data, palette_data, width, height, pal_format):
     img = Image.new("RGBA", (width, height))
     pixels = img.load()
 
-    pal = build_palette_rgb5a3(palette_data)
+    pal = build_palette(palette_data, pal_format)
 
-    pos = 0
+    for y in range(height):
+        for x in range(width):
+            off = offset_c4(x, y, width)
 
-    for by in range(0, height, 8):
-        for bx in range(0, width, 8):
-            for y in range(8):
-                for xpair in range(4):
+            if off >= len(data):
+                continue
 
-                    if pos >= len(data):
-                        return img
+            byte = data[off]
 
-                    v = data[pos]
-                    pos += 1
+            if x & 1:
+                idx = byte & 0x0F
+            else:
+                idx = byte >> 4
 
-                    for dx in range(2):
-                        idx = (v >> 4) if dx == 0 else (v & 0x0F)
-
-                        px = bx + xpair*2 + dx
-                        py = by + y
-
-                        if px < width and py < height:
-                            if idx < len(pal):
-                                pixels[px, py] = pal[idx]
+            if idx < len(pal):
+                pixels[x, y] = pal[idx]
 
     return img
 
 # ================
 # DECODE NOVO
 # ================
+def build_palette(palette_data, palette_format):
+    pal = []
+
+    for i in range(len(palette_data)//2):
+        v = (palette_data[i*2] << 8) | palette_data[i*2+1]
+
+        if palette_format == 1:  # RGB565
+            r = ((v >> 11) & 0x1F) * 255 // 31
+            g = ((v >> 5) & 0x3F) * 255 // 63
+            b = (v & 0x1F) * 255 // 31
+            a = 255
+
+        elif palette_format == 0:  # IA8
+            i8 = v & 0xFF
+            a = (v >> 8) & 0xFF
+            r = g = b = i8
+
+        else:  # RGB5A3
+            if v & 0x8000:
+                r = ((v >> 10) & 0x1F) * 255 // 31
+                g = ((v >> 5) & 0x1F) * 255 // 31
+                b = (v & 0x1F) * 255 // 31
+                a = 255
+            else:
+                a = ((v >> 12) & 0x7) * 255 // 7
+                r = ((v >> 8) & 0xF) * 255 // 15
+                g = ((v >> 4) & 0xF) * 255 // 15
+                b = (v & 0xF) * 255 // 15
+
+        pal.append((r, g, b, a))
+
+    return pal
+
 def build_palette_rgb5a3(palette_data):
     pal = []
 
@@ -244,12 +307,13 @@ def build_palette_rgb5a3(palette_data):
     return pal
 
 
-def decode_c8(data, palette_data, width, height):
+def decode_c8(data, palette_data, width, height, pal_format):
     img = Image.new("RGBA", (width, height))
     pixels = img.load()
 
-    sw = (width + 7) & ~7
-    pal = build_palette_rgb5a3(palette_data)
+    sw = align(width, 8)
+    sh = align(height, 4)
+    pal = build_palette(palette_data, pal_format)
 
     for y in range(height):
         for x in range(width):
@@ -264,6 +328,11 @@ def decode_c8(data, palette_data, width, height):
                 pixels[x, y] = pal[idx]
 
     return img
+
+# =====================
+# BUILD PALETTE
+# =====================
+
 
 # ==============================
 # CMPR (DXT1-like) decoder
@@ -364,7 +433,16 @@ def parse_wii_dic(path, out_folder):
         gx = read_be_u32(data, p + 16)
         size = read_be_u32(data, p + 24)
 
-        data_offset = p + 28
+        unk = read_be_u32(data, p + 16)
+
+        if unk == 0x20:
+            # formato alternativo
+            size = read_be_u32(data, p + 20)
+            data_offset = p + 24
+            print("[DEBUG] formato ALT detectado")
+        else:
+            size = read_be_u32(data, p + 24)
+            data_offset = p + 28
 
         print(f"\n[{i}] {name}")
         print(f"Size: {width}x{height}")
@@ -406,19 +484,25 @@ def parse_wii_dic(path, out_folder):
 
         elif gx == 8:  # C4
             pal_off = data_offset + size
-            palette_data = data[pal_off:next_offset]
 
-            img = decode_c4(tex_data, palette_data, width, height)
+            pal_count = read_be_u32(data, pal_off)
+            pal_format = read_be_u32(data, pal_off + 4)
+            pal_size = read_be_u32(data, pal_off + 8)
 
-            size = next_offset - data_offset
+            palette_data = data[pal_off + 12 : pal_off + 12 + pal_size]
+
+            img = decode_c4(tex_data, palette_data, width, height, pal_format)
 
         elif gx == 9:  # C8
             pal_off = data_offset + size
-            palette_data = data[pal_off:next_offset]
 
-            img = decode_c8(tex_data, palette_data, width, height)
+            pal_count = read_be_u32(data, pal_off)
+            pal_format = read_be_u32(data, pal_off + 4)
+            pal_size = read_be_u32(data, pal_off + 8)
 
-            size = next_offset - data_offset
+            palette_data = data[pal_off + 12 : pal_off + 12 + pal_size]
+
+            img = decode_c8(tex_data, palette_data, width, height, pal_format)
 
         elif gx == 14:
             img = decode_cmpr(tex_data, width, height)
