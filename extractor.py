@@ -542,14 +542,25 @@ def parse_wii_hvt(path, out_folder):
 # ==============================
 if __name__ == "__main__":
     import argparse
+    import os
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input")
-    parser.add_argument("-o", "--output", default="out")
 
     args = parser.parse_args()
 
-    if args.input.lower().endswith(".hvt"):
-        parse_wii_hvt(args.input, args.output)
+    base_name = os.path.splitext(os.path.basename(args.input))[0]
+    input_dir = os.path.dirname(args.input)
+
+    final_out = os.path.join(input_dir, base_name)
+
+    os.makedirs(final_out, exist_ok=True)
+
+    ext = os.path.splitext(args.input)[1].lower()
+
+    if ext == ".hvt":
+        parse_wii_hvt(args.input, final_out)
+    elif ext == ".dic":
+        parse_wii_dic(args.input, final_out)
     else:
-        parse_wii_dic(args.input, args.output)
+        print("[!] Unknown file type")
