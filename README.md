@@ -1,6 +1,12 @@
 Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
 ```python extractor.py NomeDaTextura.dic(ou .hvt)```
 
+## Supported Games
+
+| Game                     | Status | Platforms                        |
+|--------------------------|:------:|----------------------------------|
+| Obscure 2                |   ✅   | PC (.dic), Wii (.dic, .hvt)                |
+
 # (Wii)
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
 
