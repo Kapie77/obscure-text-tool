@@ -10,6 +10,11 @@ from PIL import Image
 def read_be_u32(data, off):
     return (data[off] << 24) | (data[off+1] << 16) | (data[off+2] << 8) | data[off+3]
 
+def read_u16_le(data, pos):
+    return data[pos] | (data[pos + 1] << 8)
+
+def read_u16_be(data, pos):
+    return (data[pos] << 8) | data[pos + 1]
 
 def is_printable(b):
     return 32 <= b < 127
@@ -56,7 +61,7 @@ def is_power_of_two(v):
         return v != 0 and (v & (v - 1)) == 0
 
 # ==============================
-# Decoders
+#        DECODERS (WII)
 # ==============================
 
 def offset_c4(x, y, width):
@@ -247,6 +252,114 @@ def decode_c8(data, palette_data, width, height, pal_format):
 
     return img
 
+# ==============================
+#        DECODERS (PC)
+# ==============================
+def decode_pc_rgba8_rgba(data, width, height):
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    pos = 0
+
+    for y in range(height):
+        for x in range(width):
+            if pos + 3 >= len(data):
+                return img
+
+            r = data[pos]
+            g = data[pos + 1]
+            b = data[pos + 2]
+            a = data[pos + 3]
+            pos += 4
+
+            pixels[x, y] = (r, g, b, a)
+
+    return img
+
+def decode_pc_rgba8_bgra(data, width, height):
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    pos = 0
+
+    for y in range(height):
+        for x in range(width):
+            if pos + 3 >= len(data):
+                return img
+
+            b = data[pos]
+            g = data[pos + 1]
+            r = data[pos + 2]
+            a = data[pos + 3]
+            pos += 4
+
+            pixels[x, y] = (r, g, b, a)
+
+    return img
+
+def decode_pc_rgba8(data, width, height):
+    img1 = decode_pc_rgba8_rgba(data, width, height)
+    img2 = decode_pc_rgba8_bgra(data, width, height)
+
+    # heurística simples: escolher a menos "verde absurda"
+    def score(img):
+        pixels = img.load()
+        w, h = img.size
+        s = 0
+        for y in range(0, h, max(1, h//10)):
+            for x in range(0, w, max(1, w//10)):
+                r, g, b, a = pixels[x, y]
+                s += abs(g - r) + abs(g - b)
+        return s
+
+    return img1 if score(img1) < score(img2) else img2
+
+def decode_pc_r5g6b5(data, width, height):
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    pos = 0
+
+    for y in range(height):
+        for x in range(width):
+            if pos + 1 >= len(data):
+                return img
+
+            v = data[pos] | (data[pos + 1] << 8)
+            pos += 2
+
+            r = ((v >> 11) & 0x1F) * 255 // 31
+            g = ((v >> 5) & 0x3F) * 255 // 63
+            b = (v & 0x1F) * 255 // 31
+
+            pixels[x, y] = (r, g, b, 255)
+
+    return img
+
+def decode_pc_r5g5b5a1(data, width, height):
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    pos = 0
+
+    for y in range(height):
+        for x in range(width):
+            if pos + 1 >= len(data):
+                return img
+
+            # SEM heurística — PC é sempre little-endian
+            v = data[pos] | (data[pos + 1] << 8)
+            pos += 2
+
+            r = ((v >> 10) & 0x1F) * 255 // 31
+            g = ((v >> 5) & 0x1F) * 255 // 31
+            b = (v & 0x1F) * 255 // 31
+            a = 255 if (v & 0x8000) else 0
+
+            pixels[x, y] = (r, g, b, a)
+
+    return img
+    
 # ====================
 #   BUILD PALETTE
 # ====================
@@ -363,7 +476,6 @@ def decode_cmpr(data, width, height):
                             i += 1
 
     return img
-
 
 # ==============================
 #       PARSER WII .DIC
@@ -538,6 +650,81 @@ def parse_wii_hvt(path, out_folder):
         print("[!] Unknown format")
 
 # ==============================
+#       PARSER PC .DIC
+# ==============================
+def parse_pc_dic(path, out_folder):
+    with open(path, "rb") as f:
+        data = f.read()
+
+    count = read_be_u32(data, 0)
+    offset = 4
+
+    print(f"[PC DIC] Textures: {count}")
+
+    os.makedirs(out_folder, exist_ok=True)
+
+    for i in range(count):
+        offset += 4  # skip
+
+        name_len = read_be_u32(data, offset)
+        offset += 4
+
+        name = data[offset:offset+name_len].decode("shift_jis", errors="ignore")
+        offset += name_len
+
+        mipmaps = read_be_u32(data, offset); offset += 4
+        alpha_flag = read_be_u32(data, offset); offset += 4
+        onebit_alpha = read_be_u32(data, offset); offset += 4
+        width = read_be_u32(data, offset); offset += 4
+        height = read_be_u32(data, offset); offset += 4
+        fmt = read_be_u32(data, offset); offset += 4
+
+        print(f"\n[{i}] {name}")
+        print(f"Size: {width}x{height}")
+        print(f"Format: {fmt}")
+        print(f"Mipmaps: {mipmaps}")
+
+        first_mip = None
+
+        for m in range(mipmaps):
+            mip_size = read_be_u32(data, offset)
+            offset += 4
+
+            mip_data = data[offset:offset+mip_size]
+            offset += mip_size
+
+            if m == 0:
+                first_mip = mip_data
+
+        # ======================
+        # decode
+        # ======================
+        img = None
+
+        if fmt == 21:
+            img = decode_pc_rgba8(first_mip, width, height)
+
+        elif fmt == 23:
+            img = decode_pc_r5g6b5(first_mip, width, height)
+
+        elif fmt == 25:
+            img = decode_pc_r5g5b5a1(first_mip, width, height)
+
+        # ======================
+        # save
+        # ======================
+        if img:
+            out_path = os.path.join(out_folder, name + ".png")
+            img.save(out_path)
+            print("[+] Saved:", out_path)
+        else:
+            out_path = os.path.join(out_folder, name + ".bin")
+            with open(out_path, "wb") as f:
+                f.write(first_mip)
+            print("[!] Unknown format, saved RAW")
+
+
+# ==============================
 # CLI
 # ==============================
 if __name__ == "__main__":
@@ -561,6 +748,24 @@ if __name__ == "__main__":
     if ext == ".hvt":
         parse_wii_hvt(args.input, final_out)
     elif ext == ".dic":
-        parse_wii_dic(args.input, final_out)
+        # detectar se é Wii ou PC
+        with open(args.input, "rb") as f:
+            data = f.read(64)
+
+        count = read_be_u32(data, 0)
+
+        if count > 0 and count < 4096:
+            # teste Wii (nome ASCII curto)
+            name_len = data[7]
+            if 1 <= name_len <= 48:
+                printable = all(32 <= data[8+i] < 127 for i in range(name_len))
+                if printable:
+                    parse_wii_dic(args.input, final_out)
+                else:
+                    parse_pc_dic(args.input, final_out)
+            else:
+                parse_pc_dic(args.input, final_out)
+        else:
+            parse_pc_dic(args.input, final_out)
     else:
         print("[!] Unknown file type")
