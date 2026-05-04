@@ -1,5 +1,5 @@
 Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
-```python extractor.py texwii_wii.dic```
+```python extractor.py NomeDaTextura.dic(ou .hvt)```
 
 # (Wii)
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
