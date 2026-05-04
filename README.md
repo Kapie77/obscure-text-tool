@@ -58,7 +58,8 @@ o Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armaze
 - Formato semelhante ao usado em ferramentas como TexDict
 
 **Formatos de pixel suportados**
-| ID                |   Formato  | Descrição                 |
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
 | 21                |   R8G8B8A8  | 32 bpp (RGBA)               |
 | 23                |   R5G6B5  | 16 bpp (sem alpha)             |
 | 25                |   R5G5B5A1  | 16 bpp (1-bit alpha)                |
@@ -72,7 +73,8 @@ o Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armaze
 - Baseado em scripts como fmt_dip.py (Noesis)
 
 **Formatos de pixel suportados**
-| ID                |   Formato  | Descrição                 |
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
 | 21                |   B8G8R8A8  | 32 bpp (BGRA)               |
 | 23                |   B5G6R5  | 16 bpp             |
 | 25                |   B5G5R5A1  | 16 bpp (1-bit alpha)                |
