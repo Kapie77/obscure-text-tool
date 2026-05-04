@@ -106,7 +106,7 @@ def decode_ia8(data, width, height):
 
 def align(val, alignment):
     return (val + alignment - 1) & ~(alignment - 1)
-    
+
 
 def decode_rgba8(data, width, height):
     img = Image.new("RGBA", (width, height))
@@ -366,7 +366,7 @@ def decode_cmpr(data, width, height):
 
 
 # ==============================
-# Main parser
+#       PARSER WII .DIC
 # ==============================
 
 DECODERS = {
@@ -467,11 +467,79 @@ def parse_wii_dic(path, out_folder):
         # encontrar próxima textura
         offset = next_offset
 
+# ==============================
+#       PARSER WII .HVT
+# ==============================
+def parse_wii_hvt(path, out_folder):
+    with open(path, "rb") as f:
+        data = f.read()
+
+    if data[0:4] != b"\x20IVH":
+        print("[!] Not a valid HVT")
+        return
+
+    format_tag = data[8:12].decode()
+    width = (data[0x0E] << 8) | data[0x0F]
+    height = (data[0x12] << 8) | data[0x13]
+    bpp = (data[0x14] << 24) | (data[0x15] << 16) | (data[0x16] << 8) | data[0x17]
+
+    print(f"[HVT] {path}")
+    print(f"Format: {format_tag}")
+    print(f"Size: {width}x{height}")
+    print(f"BPP: {bpp}")
+
+    header_size = 0x18
+    pixel_size = (width * height * bpp + 7) // 8
+
+    pixel_data = data[header_size:header_size + pixel_size]
+
+    palette_data = None
+
+    if format_tag == "P8WI":
+        pal_off = header_size + pixel_size
+        palette_data = data[pal_off:pal_off + 512]
+
+    # =====================
+    # decode
+    # =====================
+    img = None
+
+    if format_tag == "S3TW":
+        img = decode_cmpr(pixel_data, width, height)
+
+    elif format_tag == "G8A8":
+        img = decode_ia8(pixel_data, width, height)
+
+    elif format_tag == "GRY8":
+        img = decode_i8(pixel_data, width, height)
+
+    elif format_tag == "4443":
+        img = decode_rgb5a3(pixel_data, width, height)
+
+    elif format_tag == "ARGB":
+        img = decode_rgba8(pixel_data, width, height)
+
+    elif format_tag == "P8WI":
+        img = decode_c8(pixel_data, palette_data, width, height, 2)  
+        # 2 = RGB5A3
+
+    # =====================
+    # save
+    # =====================
+    os.makedirs(out_folder, exist_ok=True)
+
+    name = os.path.splitext(os.path.basename(path))[0]
+
+    if img:
+        out_path = os.path.join(out_folder, name + ".png")
+        img.save(out_path)
+        print("[+] Saved:", out_path)
+    else:
+        print("[!] Unknown format")
 
 # ==============================
 # CLI
 # ==============================
-
 if __name__ == "__main__":
     import argparse
 
@@ -481,4 +549,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    parse_wii_dic(args.input, args.output)
+    if args.input.lower().endswith(".hvt"):
+        parse_wii_hvt(args.input, args.output)
+    else:
+        parse_wii_dic(args.input, args.output)
