@@ -5,10 +5,10 @@ Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
 
 ## Formatos suportados:
-**C4 (4bpp)** – usa paleta de 16 cores
-**C8 (8bpp)** – usa paleta de 256 cores
-**RGB5A3** – cor direta com alpha opcional
-**RGBA8** – cor completa 32-bit
+- **C4 (4bpp)** – usa paleta de 16 cores
+- **C8 (8bpp)** – usa paleta de 256 cores
+- **RGB5A3** – cor direta com alpha opcional
+- **RGBA8** – cor completa 32-bit
 
 ## Características importantes:
 - Texturas são armazenadas em tiles (blocos)
