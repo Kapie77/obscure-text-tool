@@ -22,7 +22,7 @@ As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena image
 ## Caso especial: texturas tipo a_medallion
 Algumas texturas (ex: a_medallion001, a_medallion002, fx_npc_die, fx_elec_bolt) utilizam um layout ligeiramente diferente do padrão.
 
-### Diferenças:
+**Diferenças:**
 - Offset dos dados:
 ```data_offset = p + 24```
 (em vez de p + 28)
