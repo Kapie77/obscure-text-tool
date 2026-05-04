@@ -47,7 +47,7 @@ Decodificação incorreta do layout de tiles resulta em:
 - artefatos visuais
 
 # (PC)
-o Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armazenam múltiplas texturas com mipmaps, mas diferem principalmente em endianness e ordem de canais de cor.
+O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armazenam múltiplas texturas com mipmaps, mas diferem principalmente em endianness e ordem de canais de cor.
 
 ## .dic
 **Características**
