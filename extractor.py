@@ -371,43 +371,6 @@ def ps2_swizzle_id(x, y, w):
     byte = ((y >> 1) & 1) + ((x >> 2) & 2)
     return block + column + byte
 
-def unswizzle_ps2(data, w, h):
-    out = bytearray(w * h)
-
-    for y in range(h):
-        for x in range(w):
-            sid = ps2_swizzle_id(x, y, w)
-            if sid < len(data):
-                out[y * w + x] = data[sid]
-
-    return out
-
-def unswizzle_ps2_8bpp_hvi(data, width, height):
-    out = bytearray(width * height)
-
-    for y in range(height):
-        for x in range(width):
-
-            block_x = x & ~0x0F
-            block_y = y & ~0x0F
-
-            local_x = x & 0x0F
-            local_y = y & 0x0F
-
-            block_index = (block_y * width) + (block_x * 2)
-
-            swap = (((y + 2) >> 2) & 1) * 4
-            posY = (((y & ~3) >> 1) + (y & 1)) & 7
-
-            column = posY * width * 2 + ((x + swap) & 7) * 4
-            byte = ((y >> 1) & 1) + ((x >> 2) & 2)
-
-            index = block_index + column + byte
-
-            if index < len(data):
-                out[y * width + x] = data[index]
-
-    return out
 
 def remap_clut_index(i):
     return (i & 0xE7) | ((i & 0x08) << 1) | ((i & 0x10) >> 1)
@@ -454,28 +417,6 @@ def unswizzle_8bpp(data, width, height):
 
     return out
 
-def unswizzle_8bpp_hvi(data, width, height):
-    out = bytearray(width * height)
-
-    blocks_x = width // 16
-    blocks_y = height // 16
-
-    for by in range(blocks_y):
-        for bx in range(blocks_x):
-            block_index = by * blocks_x + bx
-            base = block_index * 256  # 16x16
-
-            for y in range(16):
-                for x in range(16):
-                    src = base + y * 16 + x
-
-                    dst_x = bx * 16 + x
-                    dst_y = by * 16 + y
-
-                    if src < len(data):
-                        out[dst_y * width + dst_x] = data[src]
-
-    return out
 
 def decode_ps2_8bpp(pixel_data, palette_data, width, height):
     from PIL import Image
@@ -483,17 +424,15 @@ def decode_ps2_8bpp(pixel_data, palette_data, width, height):
     img = Image.new("RGBA", (width, height))
     pixels = img.load()
 
-    # 1. UNSWIZZLE
-    stride = ((width + 63) // 64) * 64
+    # UNSWIZZLE (PS2 DIC)
     indices = unswizzle_8bpp(pixel_data, width, height)
 
-    # 2. PALETTE CORRETA + REMAP
+    # PALETTE (com remap)
     palette = decode_ps2_palette(palette_data)
 
-    # 3. APLICAR
     for y in range(height):
         for x in range(width):
-            idx = indices[y * stride + x]
+            idx = indices[y * width + x]
             if idx < 256:
                 pixels[x, y] = palette[idx]
 
