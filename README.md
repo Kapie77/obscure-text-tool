@@ -1,5 +1,5 @@
 Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
-```python extractor.py NomeDaTextura.dic(.hvt ou .dip)```
+```python extractor.py NomeDaTextura.dic(.dip, .hvt ou .hvi)```
 
 ## Supported Games
 
