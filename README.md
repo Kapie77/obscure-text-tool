@@ -5,7 +5,7 @@ Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
 
 | Game                     | Status | Platforms                        |
 |--------------------------|:------:|----------------------------------|
-| Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip) PS2 (.dic, .hvi)                 |
+| Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi)                 |
 | Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.hvt)                |
 
 # (Wii)
