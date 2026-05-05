@@ -104,6 +104,13 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 | 0x12                |   LU_A8R8G8B8  | 32 bpp (linear)                |
 | 0x13                |   LU_X8R8G8B8  | 32 bpp (linear)                |
 
+**Formatos não suportados (comuns)**
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| 0x0C                |   DXT1  | Compressão S3TC               |
+| 0x0E                |   DXT3  | Compressão com alpha             |
+| 0x0F                |   DXT5  | Compressão avançada                |
+
 **Observação:**
 - Diferente do PS2, não usa paletas (CLUT)
 - Mais próximo de APIs modernas (Direct3D)
