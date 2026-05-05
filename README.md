@@ -5,8 +5,8 @@ Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
 
 | Game                     | Status | Platforms                        |
 |--------------------------|:------:|----------------------------------|
-| Obscure 1                |   ✅   | PC Steam/GOG/Retail/PS2 (.dip, .dic)                 |
-| Obscure 2                |   ✅   | PC Steam/Retail/PS2 (.dic, .hvi), Wii (.dic, .hvt)                |
+| Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip) PS2 (.dic, .hvi)                 |
+| Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.hvt)                |
 
 # (Wii)
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
