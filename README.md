@@ -1,11 +1,11 @@
 Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
-```python extractor.py NomeDaTextura.dic(.dip, .hvt ou .hvi)```
+```python extractor.py NomeDaTextura.dic(.dip, .hvt, .hvi, .xbr)```
 
 ## Supported Games
 
 | Game                     | Status | Platforms                        |
 |--------------------------|:------:|----------------------------------|
-| Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi)                 |
+| Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi), Xbox (.xbr)                 |
 | Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.hvt)                |
 
 # (Wii)
@@ -78,3 +78,32 @@ O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armaze
 | 21                |   B8G8R8A8  | 32 bpp (BGRA)               |
 | 23                |   B5G6R5  | 16 bpp             |
 | 25                |   B5G5R5A1  | 16 bpp (1-bit alpha)                |
+
+# (Xbox)
+As versões de ObsCure para o Xbox clássico utilizam arquivos .xbr como dicionários de textura.
+Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue padrões muito próximos do Direct3D da época. O formato .xbr é um texture dictionary usado para armazenar múltiplas texturas em um único arquivo.
+
+## .xbr
+**Características**
+- Little-endian
+- Pode conter múltiplas texturas
+- Suporta mipmaps
+- Strings em ASCII
+- Baseado no formato NV2A (Direct3D-like)
+- Usa swizzle Morton (Z-order) em texturas SZ_*
+- Estrutura com descriptors + tabela de nomes + bloco de pixels
+
+**Formatos de pixel suportados**
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| 0x05                |   SZ_R5G6B5  | 16 bpp (RGB, swizzled)               |
+| 0x02                |   SZ_A1R5G5B5  | 16 bpp (1-bit alpha, swizzled)             |
+| 0x06                |   SZ_A8R8G8B8  | 32 bpp (RGBA, swizzled)                |
+| 0x07                |   SZ_X8R8G8B8  | 32 bpp (RGB, swizzled))                |
+| 0x11                |   LU_R5G6B5  | 16 bpp (linear)                |
+| 0x12                |   LU_A8R8G8B8  | 32 bpp (linear)                |
+| 0x13                |   LU_X8R8G8B8  | 32 bpp (linear)                |
+
+**Observação:**
+- Diferente do PS2, não usa paletas (CLUT)
+- Mais próximo de APIs modernas (Direct3D)
