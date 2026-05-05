@@ -371,7 +371,7 @@ def ps2_swizzle_id(x, y, w):
     byte = ((y >> 1) & 1) + ((x >> 2) & 2)
     return block + column + byte
 
-def unswizzle_8bpp(data, w, h):
+def unswizzle_ps2(data, w, h):
     out = bytearray(w * h)
 
     for y in range(h):
@@ -379,6 +379,33 @@ def unswizzle_8bpp(data, w, h):
             sid = ps2_swizzle_id(x, y, w)
             if sid < len(data):
                 out[y * w + x] = data[sid]
+
+    return out
+
+def unswizzle_ps2_8bpp_hvi(data, width, height):
+    out = bytearray(width * height)
+
+    for y in range(height):
+        for x in range(width):
+
+            block_x = x & ~0x0F
+            block_y = y & ~0x0F
+
+            local_x = x & 0x0F
+            local_y = y & 0x0F
+
+            block_index = (block_y * width) + (block_x * 2)
+
+            swap = (((y + 2) >> 2) & 1) * 4
+            posY = (((y & ~3) >> 1) + (y & 1)) & 7
+
+            column = posY * width * 2 + ((x + swap) & 7) * 4
+            byte = ((y >> 1) & 1) + ((x >> 2) & 2)
+
+            index = block_index + column + byte
+
+            if index < len(data):
+                out[y * width + x] = data[index]
 
     return out
 
@@ -416,6 +443,40 @@ def decode_ps2_palette(pal):
 
     return fixed
 
+def unswizzle_8bpp(data, width, height):
+    out = bytearray(width * height)
+
+    for y in range(height):
+        for x in range(width):
+            sid = ps2_swizzle_id(x, y, width)
+            if sid < len(data):
+                out[y * width + x] = data[sid]
+
+    return out
+
+def unswizzle_8bpp_hvi(data, width, height):
+    out = bytearray(width * height)
+
+    blocks_x = width // 16
+    blocks_y = height // 16
+
+    for by in range(blocks_y):
+        for bx in range(blocks_x):
+            block_index = by * blocks_x + bx
+            base = block_index * 256  # 16x16
+
+            for y in range(16):
+                for x in range(16):
+                    src = base + y * 16 + x
+
+                    dst_x = bx * 16 + x
+                    dst_y = by * 16 + y
+
+                    if src < len(data):
+                        out[dst_y * width + dst_x] = data[src]
+
+    return out
+
 def decode_ps2_8bpp(pixel_data, palette_data, width, height):
     from PIL import Image
 
@@ -423,19 +484,53 @@ def decode_ps2_8bpp(pixel_data, palette_data, width, height):
     pixels = img.load()
 
     # 1. UNSWIZZLE
+    stride = ((width + 63) // 64) * 64
     indices = unswizzle_8bpp(pixel_data, width, height)
 
     # 2. PALETTE CORRETA + REMAP
     palette = decode_ps2_palette(palette_data)
 
     # 3. APLICAR
-    for i in range(width * height):
-        x = i % width
-        y = i // width
+    for y in range(height):
+        for x in range(width):
+            idx = indices[y * stride + x]
+            if idx < 256:
+                pixels[x, y] = palette[idx]
 
-        idx = indices[i]
-        if idx < len(palette):
-            pixels[x, y] = palette[idx]
+    return img
+
+def decode_ps2_hvi(pixel_data, palette_data, width, height):
+    from PIL import Image
+
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    # ✔ pixels já são lineares
+    indices = pixel_data
+
+    # ✔ detectar se precisa escalar alpha
+    max_alpha = max(palette_data[i] for i in range(3, len(palette_data), 4))
+    scale_alpha = max_alpha <= 0x90
+
+    # ✔ palette é BGRA
+    palette = []
+    for i in range(256):
+        b = palette_data[i*4 + 0]
+        g = palette_data[i*4 + 1]
+        r = palette_data[i*4 + 2]
+        a = palette_data[i*4 + 3]
+
+        if scale_alpha:
+            a = min(255, a * 2)
+
+        palette.append((r, g, b, a))
+
+    # ✔ aplicar direto
+    for y in range(height):
+        for x in range(width):
+            idx = indices[y * width + x]
+            if idx < 256:
+                pixels[x, y] = palette[idx]
 
     return img
 
@@ -1019,6 +1114,51 @@ def iter_chunks(data, start, end):
         off += 12 + size
 
 # ==============================
+#       PARSER PS2 .HVI
+# ==============================
+def parse_ps2_hvi(path, out_folder):
+    from PIL import Image
+    import os
+
+    with open(path, "rb") as f:
+        data = f.read()
+
+    print("[PS2] Parsing HVI")
+
+    if data[0:4] != b"HVI ":
+        print("[!] Not a valid HVI")
+        return
+
+    width  = int.from_bytes(data[0x0C:0x10], "little")
+    height = int.from_bytes(data[0x10:0x14], "little")
+    bpp    = int.from_bytes(data[0x14:0x18], "little")
+
+    print(f"Size: {width}x{height}")
+    print(f"BPP: {bpp}")
+
+    if bpp != 8:
+        print("[!] Only 8bpp supported")
+        return
+
+    palette_offset = 0x18
+    palette_size = 1024
+
+    pixel_offset = palette_offset + palette_size
+    pixel_size = width * height
+
+    palette = data[palette_offset:palette_offset + palette_size]
+    pixels  = data[pixel_offset:pixel_offset + pixel_size]
+
+    img = decode_ps2_hvi(pixels, palette, width, height)
+
+    os.makedirs(out_folder, exist_ok=True)
+    base = os.path.splitext(os.path.basename(path))[0]
+    out_path = os.path.join(out_folder, base + ".png")
+    img.save(out_path)
+
+    print("[+] Saved:", out_path)
+
+# ==============================
 #           CLI
 # ==============================
 if __name__ == "__main__":
@@ -1034,21 +1174,37 @@ if __name__ == "__main__":
     input_dir = os.path.dirname(args.input)
 
     final_out = os.path.join(input_dir, base_name)
-
     os.makedirs(final_out, exist_ok=True)
 
     ext = os.path.splitext(args.input)[1].lower()
 
+    # =========================
+    # HVT (Wii)
+    # =========================
     if ext == ".hvt":
         parse_wii_hvt(args.input, final_out)
 
+    # =========================
+    # HVI (PS2)
+    # =========================
+    elif ext == ".hvi":
+        with open(args.input, "rb") as f:
+            magic = f.read(4)
+
+        if magic == b"HVI ":
+            print("[+] Detected PS2 HVI")
+            parse_ps2_hvi(args.input, final_out)
+        else:
+            print("[!] Invalid HVI file")
+
+    # =========================
+    # DIC (multi-plataforma)
+    # =========================
     elif ext == ".dic":
         with open(args.input, "rb") as f:
             data = f.read(64)
 
-        # =========================
-        # DETECÇÃO PS2 (PRIMEIRO!)
-        # =========================
+        # PS2 (RenderWare)
         if len(data) >= 4:
             rw_id = int.from_bytes(data[0:4], "little")
             if rw_id == 0x16:
@@ -1056,9 +1212,7 @@ if __name__ == "__main__":
                 parse_ps2_dic(args.input, final_out)
                 exit()
 
-        # =========================
-        # DETECÇÃO WII / PC
-        # =========================
+        # Wii / PC
         count = read_be_u32(data, 0)
 
         if count > 0 and count < 4096:
