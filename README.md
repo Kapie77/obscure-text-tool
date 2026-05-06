@@ -172,19 +172,25 @@ O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jog
 - Texturas precisam passar por:
   - unswizzle (reorganização de memória GPU)
   - byte swap (endianness)
+
 - Alinhamento obrigatório:
  - BC (DXT): múltiplos de 128 pixels
  - ARGB: múltiplos de 32 pixels
+
 - Após decodificação, é necessário:
  - remover padding (crop) para o tamanho original
+
 - Dados BC usam blocos padrão (DXT), mas:
  - ❗ não estão em ordem linear
+
 - Alguns arquivos podem conter:
  - bytes extras após o mip0
+
 - Estrutura interna:
  - HEAD → metadados
  - X360 → configuração GPU (tiling)
  - DATA → dados da textura
+
 - Tags podem aparecer como:
  - DXT1 / DXT5 (normal)
  - 1TXD / 5TXD (variação)
