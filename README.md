@@ -1,6 +1,8 @@
 Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
 ```python extractor.py NomeDaTextura.dic(.dip, .hvt, .hvi, .xbr)```
 
+Falta suporte para Final Exam de PS3, consertar suporte do Obscure 2 .dic de PS2, e dar suporte para PSP do Obscure 2.
+
 ## Supported Games
 
 | Game                     | Status | Platforms                        |
