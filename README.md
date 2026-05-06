@@ -11,7 +11,7 @@ Falta suporte para Final Exam de PS3, consertar suporte do Obscure 2 .dic de PS2
 | Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.hvt)                |
 | Final Exam                |   ✅   | PC Steam (.hvt), Xbox (.hvt)              |
 
-# ObsCure
+# ObsCure 1 e 2
 ## (Wii)
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
 
