@@ -564,6 +564,170 @@ def decode_xbox_a1r5g5b5(data, width, height):
 
     return img
 
+# ===============================
+#    DECODERS FINAL EXAM (HVT)
+# ===============================
+def decode_bgra(raw, width, height):
+    return raw  # já está no formato correto
+
+def decode_dxt1(raw, width, height):
+    def rgb565(c):
+        r = ((c >> 11) & 0x1F) * 255 // 31
+        g = ((c >> 5) & 0x3F) * 255 // 63
+        b = (c & 0x1F) * 255 // 31
+        return b, g, r
+
+    out = bytearray(width * height * 4)
+    pos = 0
+
+    blocks_x = (width + 3) // 4
+    blocks_y = (height + 3) // 4
+
+    for by in range(blocks_y):
+        for bx in range(blocks_x):
+            if pos + 8 > len(raw):
+                return out
+
+            c0 = raw[pos] | (raw[pos+1] << 8)
+            c1 = raw[pos+2] | (raw[pos+3] << 8)
+
+            b0,g0,r0 = rgb565(c0)
+            b1,g1,r1 = rgb565(c1)
+
+            colors = [
+                (b0,g0,r0,255),
+                (b1,g1,r1,255),
+            ]
+
+            if c0 > c1:
+                colors.append(((2*b0+b1)//3,(2*g0+g1)//3,(2*r0+r1)//3,255))
+                colors.append(((b0+2*b1)//3,(g0+2*g1)//3,(r0+2*r1)//3,255))
+            else:
+                colors.append(((b0+b1)//2,(g0+g1)//2,(r0+r1)//2,255))
+                colors.append((0,0,0,0))
+
+            bits = int.from_bytes(raw[pos+4:pos+8], "little")
+
+            for y in range(4):
+                for x in range(4):
+                    px = bx*4 + x
+                    py = by*4 + y
+
+                    if px >= width or py >= height:
+                        continue
+
+                    idx = (bits >> (2*(y*4+x))) & 3
+                    b,g,r,a = colors[idx]
+
+                    i = (py*width + px)*4
+                    out[i:i+4] = bytes([b,g,r,a])
+
+            pos += 8
+
+    return out
+
+def decode_dxt5(raw, width, height):
+    def rgb565(c):
+        r = ((c >> 11) & 0x1F) * 255 // 31
+        g = ((c >> 5) & 0x3F) * 255 // 63
+        b = (c & 0x1F) * 255 // 31
+        return b, g, r
+
+    out = bytearray(width * height * 4)
+    pos = 0
+
+    blocks_x = (width + 3) // 4
+    blocks_y = (height + 3) // 4
+
+    for by in range(blocks_y):
+        for bx in range(blocks_x):
+            if pos + 16 > len(raw):
+                return out
+
+            # =========================
+            # ALPHA BLOCK (8 bytes)
+            # =========================
+            a0 = raw[pos + 0]
+            a1 = raw[pos + 1]
+
+            alpha = [0] * 8
+            alpha[0] = a0
+            alpha[1] = a1
+
+            if a0 > a1:
+                for i in range(1, 7):
+                    alpha[i + 1] = ((7 - i) * a0 + i * a1) // 7
+            else:
+                for i in range(1, 5):
+                    alpha[i + 1] = ((5 - i) * a0 + i * a1) // 5
+                alpha[6] = 0
+                alpha[7] = 255
+
+            abits = 0
+            for i in range(6):
+                abits |= raw[pos + 2 + i] << (8 * i)
+
+            # =========================
+            # COLOR BLOCK (DXT1)
+            # =========================
+            c0 = raw[pos + 8] | (raw[pos + 9] << 8)
+            c1 = raw[pos + 10] | (raw[pos + 11] << 8)
+
+            b0, g0, r0 = rgb565(c0)
+            b1, g1, r1 = rgb565(c1)
+
+            colors = [
+                (b0, g0, r0),
+                (b1, g1, r1),
+                ((2*b0 + b1)//3, (2*g0 + g1)//3, (2*r0 + r1)//3),
+                ((b0 + 2*b1)//3, (g0 + 2*g1)//3, (r0 + 2*r1)//3),
+            ]
+
+            cbits = int.from_bytes(raw[pos + 12:pos + 16], "little")
+
+            # =========================
+            # WRITE PIXELS
+            # =========================
+            for y in range(4):
+                for x in range(4):
+                    px = bx * 4 + x
+                    py = by * 4 + y
+
+                    if px >= width or py >= height:
+                        continue
+
+                    idx = y * 4 + x
+
+                    c_idx = (cbits >> (idx * 2)) & 3
+                    a_idx = (abits >> (idx * 3)) & 7
+
+                    b, g, r = colors[c_idx]
+                    a = alpha[a_idx]
+
+                    i = (py * width + px) * 4
+                    out[i:i+4] = bytes([b, g, r, a])
+
+            pos += 16
+
+    return out
+    
+def decode_bgrx(raw, width, height):
+    pixels = width * height
+    out = bytearray(pixels * 4)
+
+    for i in range(pixels):
+        b = raw[i*4 + 0]
+        g = raw[i*4 + 1]
+        r = raw[i*4 + 2]
+        # raw[i*4 + 3] = X (ignorado)
+
+        out[i*4 + 0] = b
+        out[i*4 + 1] = g
+        out[i*4 + 2] = r
+        out[i*4 + 3] = 255  # alpha forçado
+
+    return bytes(out)
+
 # ====================
 #   BUILD PALETTE
 # ====================
@@ -611,6 +775,39 @@ def read_palette(data, offset):
     palette_data = data[offset + 12 : offset + 12 + pal_size]
 
     return pal_format, palette_data
+
+# =============================================
+#    DETECÇÃO DE .HVT (OBSCURE OU FINAL EXAM)
+# =============================================
+def is_finalexam_hvt(path):
+    try:
+        with open(path, "rb") as f:
+            data = f.read(0x40)  # lê mais pra garantir
+
+        magic = data[0:4]
+
+        # PC
+        if magic == b"HVI ":
+            return True
+
+        # PS3 / X360
+        if magic == b" IVH":
+            # heurística: Final Exam sempre tem formato ASCII em 0x14
+            fmt = data[0x14:0x18]
+
+            # formatos válidos conhecidos
+            known = [
+                b"DXT1", b"DXT3", b"DXT5",
+                b"TXD1", b"TXD3", b"TXD5",
+                b"ARGB", b"XRGB",
+            ]
+
+            return fmt in known
+
+        return False
+
+    except:
+        return False
 
 # ==============================
 # CMPR (DXT1-like) decoder
@@ -1308,6 +1505,108 @@ def parse_xbox_xbr(path, out_folder):
         print("[+] Saved:", out_path)
 
 # ==============================
+#     PARSER FINAL EXAM HVT
+# ==============================
+from PIL import Image
+
+def save_png(raw_bgra, width, height, path):
+    rgba = bytearray(width * height * 4)
+
+    for i in range(width * height):
+        b = raw_bgra[i*4 + 0]
+        g = raw_bgra[i*4 + 1]
+        r = raw_bgra[i*4 + 2]
+        a = raw_bgra[i*4 + 3]
+
+        rgba[i*4 + 0] = r
+        rgba[i*4 + 1] = g
+        rgba[i*4 + 2] = b
+        rgba[i*4 + 3] = a
+
+    img = Image.frombytes("RGBA", (width, height), bytes(rgba))
+    img.save(path)
+
+def parse_finalexam_hvt(path, out_dir):
+    with open(path, "rb") as f:
+        data = f.read()
+
+    def read_u32(off, be):
+        if be:
+            return int.from_bytes(data[off:off+4], "big")
+        else:
+            return int.from_bytes(data[off:off+4], "little")
+
+    magic = data[0:4]
+
+    is_be = (magic == b" IVH")
+
+    format_tag = data[0x14:0x18].decode("ascii", errors="ignore")
+
+    width  = read_u32(0x18, is_be)
+    height = read_u32(0x1C, is_be)
+    bpp    = read_u32(0x20, is_be)
+    mipmaps = read_u32(0x28, is_be)
+
+    # Detect platform
+    if magic == b"HVI ":
+        platform = "PC"
+    else:
+        arch = data[0x24:0x28]
+        if arch == b"X360":
+            platform = "X360"
+        else:
+            platform = "PS3"
+
+    # Offsets
+    if platform == "X360":
+        mip0_size = read_u32(0x80, True)
+        pixel_offset = 0x84
+    else:
+        mip0_size = read_u32(0x3C, is_be)
+        pixel_offset = 0x40
+
+    print(f"[+] Final Exam HVT detected")
+    print(f"    Platform: {platform}")
+    print(f"    Format: {format_tag}")
+    print(f"    Size: {width}x{height}")
+    print(f"    Mips: {mipmaps}")
+
+    raw = data[pixel_offset:pixel_offset + mip0_size]
+
+    # =========================
+    # DECODERS
+    # =========================
+
+    if format_tag in ["BGRA"]:
+        img = decode_bgra(raw, width, height)
+
+    elif format_tag in ["BGRX"]:
+        img = decode_bgrx(raw, width, height)
+
+    elif format_tag in ["1TXD", "DXT1"]:
+        img = decode_dxt1(raw, width, height)
+
+    elif format_tag in ["3TXD", "DXT3"]:
+        img = decode_dxt3(raw, width, height)
+
+    elif format_tag in ["5TXD", "DXT5"]:
+        img = decode_dxt5(raw, width, height)
+
+    elif format_tag == "ARGB":
+        if platform == "PS3":
+            img = decode_rgba_ps3(raw, width, height)
+        else:
+            img = decode_argb_be(raw, width, height)
+
+    else:
+        print(f"[!] Unsupported format: {format_tag}")
+        return
+
+    # salvar
+    out_path = os.path.join(out_dir, "texture.png")
+    save_png(img, width, height, out_path)
+
+# ==============================
 #           CLI
 # ==============================
 if __name__ == "__main__":
@@ -1328,10 +1627,15 @@ if __name__ == "__main__":
     ext = os.path.splitext(args.input)[1].lower()
 
     # =========================
-    # HVT (Wii)
+    # HVT (Wii ou Final Exam)
     # =========================
     if ext == ".hvt":
-        parse_wii_hvt(args.input, final_out)
+        if is_finalexam_hvt(args.input):
+            print("[+] Detected Final Exam HVT")
+            parse_finalexam_hvt(args.input, final_out)
+        else:
+            print("[+] Detected Wii HVT")
+            parse_wii_hvt(args.input, final_out)
 
     # =========================
     # HVI (PS2)
