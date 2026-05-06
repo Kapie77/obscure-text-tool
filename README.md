@@ -7,7 +7,7 @@ Tenha o Python instalado, abra o cmd no diretório da ferramenta e digite:
 |--------------------------|:------:|----------------------------------|
 | Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi), Xbox (.xbr)                 |
 | Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.hvt)                |
-| Final Exam                |   ✅   | PC Steam (.hvt)              |
+| Final Exam                |   ✅   | PC Steam (.hvt), Xbox (.hvt)              |
 
 # (Wii)
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
@@ -137,7 +137,7 @@ O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jog
 | 3TXD                |   DXT3 (BC2)  | 8 bpp (alpha explícito 4-bit)                |
 | 5TXD                |   DXT5 (BC3)  | 8 bpp (alpha interpolado)                |
 
-*Notas**
+**Notas**
 - Tags como 1TXD, 3TXD, 5TXD são DXT1/3/5 invertidos (armazenados ao contrário no PC)
 - Dados BC (DXT) são armazenados em little-endian padrão de PC
 - Não há swizzling ou tiling (diferente do Xbox 360)
@@ -145,3 +145,46 @@ O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jog
 - Estrutura usa:
   - HEAD → metadados
   - DATA → dados da textura (mip0 primeiro)
+ 
+## (Xbox) .hvt
+**Características**
+- Big-endian
+- Textura única por arquivo
+- Suporta mipmaps
+- Header baseado em chunks (HEAD, X360, DATA)
+- Usa tiling (swizzle de GPU) obrigatório
+- Requer byte swap (16-bit) antes do decode
+- Estrutura semelhante ao PS3, mas com layout de memória diferente (tiled)
+- Dados podem conter padding (alinhamento)
+
+**Formatos de pixel suportados**
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| DXT1 / 1TXD                |   DXT1 (BC1)  | 4 bpp (compressão sem alpha ou 1-bit alpha)               |
+| DXT3 / 3TXD                |   DXT3 (BC2)  | 8 bpp (alpha explícito 4-bit)             |
+| DXT5 / 5TXD                |   DXT5 (BC3)  | 8 bpp (alpha interpolado)                |
+| ARGB                |   ARGB  | 32 bpp (com alpha)                |
+
+**Notas**
+- Diferente do PC:
+ - ✔ PC = dados lineares
+ - ❗ X360 = dados tiled (swizzled)
+- Texturas precisam passar por:
+  - unswizzle (reorganização de memória GPU)
+  - byte swap (endianness)
+- Alinhamento obrigatório:
+ - BC (DXT): múltiplos de 128 pixels
+ - ARGB: múltiplos de 32 pixels
+- Após decodificação, é necessário:
+ - remover padding (crop) para o tamanho original
+- Dados BC usam blocos padrão (DXT), mas:
+ - ❗ não estão em ordem linear
+- Alguns arquivos podem conter:
+ - bytes extras após o mip0
+- Estrutura interna:
+ - HEAD → metadados
+ - X360 → configuração GPU (tiling)
+ - DATA → dados da textura
+- Tags podem aparecer como:
+ - DXT1 / DXT5 (normal)
+ - 1TXD / 5TXD (variação)
