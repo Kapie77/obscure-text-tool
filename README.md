@@ -115,3 +115,33 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 **Observação:**
 - Diferente do PS2, não usa paletas (CLUT)
 - Mais próximo de APIs modernas (Direct3D)
+
+# Final Exam
+O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jogos Obscure clássicos. Ele armazena texturas standalone com suporte a múltiplas plataformas (PC, PS3, Xbox 360), variando principalmente em endianness, compressão e layout de memória.
+
+## (PC) .hvt
+**Características**
+- Little-endian
+- Textura única por arquivo
+- Suporta mipmaps
+- Header baseado em chunks (HEAD, DATA)
+- Formatos de pixel identificados por tags ASCII (invertidas em alguns casos)
+- Estrutura moderna comparada aos formatos antigos da HydraVision
+
+**Formatos de pixel suportados**
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| BGRA                |   BGRA  | 32 bpp (linear, com alpha)               |
+| BGRX                |   BGRX  | 32 bpp (alpha forçado opaco)             |
+| 1TXD                |   DXT1 (BC1)  | 4 bpp (compressão sem alpha ou 1-bit alpha)                |
+| 3TXD                |   DXT3 (BC2)  | 8 bpp (alpha explícito 4-bit)                |
+| 5TXD                |   DXT5 (BC3)  | 8 bpp (alpha interpolado)                |
+
+*Notas**
+- Tags como 1TXD, 3TXD, 5TXD são DXT1/3/5 invertidos (armazenados ao contrário no PC)
+- Dados BC (DXT) são armazenados em little-endian padrão de PC
+- Não há swizzling ou tiling (diferente do Xbox 360)
+- BGRX ignora o canal alpha (sempre tratado como 255)
+- Estrutura usa:
+  - HEAD → metadados
+  - DATA → dados da textura (mip0 primeiro)
