@@ -2,14 +2,12 @@ Tenha o Python e Pillow instalados, abra o cmd no diretório da ferramenta e dig
 
 ```python extractor.py NomeDaTextura.Formato(, dic, .dip, .hvt, .hvi ou .xbr)```
 
-Falta dar suporte para PSP do Obscure 2.
-
 # Supported Games
 
 | Game                     | Status | Platforms                        |
 |--------------------------|:------:|----------------------------------|
 | Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi), Xbox (.xbr)                 |
-| Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.hvt)                |
+| Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.hvt), PSP (.dic)                |
 | Final Exam                |   ✅   | PC Steam (.hvt), Xbox (.hvt), PS3 (.hvt)              |
 
 # ObsCure 1 e 2
@@ -104,7 +102,7 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 | 0x05                |   SZ_R5G6B5  | 16 bpp (RGB, swizzled)               |
 | 0x02                |   SZ_A1R5G5B5  | 16 bpp (1-bit alpha, swizzled)             |
 | 0x06                |   SZ_A8R8G8B8  | 32 bpp (RGBA, swizzled)                |
-| 0x07                |   SZ_X8R8G8B8  | 32 bpp (RGB, swizzled))                |
+| 0x07                |   SZ_X8R8G8B8  | 32 bpp (RGB, swizzled)                |
 | 0x11                |   LU_R5G6B5  | 16 bpp (linear)                |
 | 0x12                |   LU_A8R8G8B8  | 32 bpp (linear)                |
 | 0x13                |   LU_X8R8G8B8  | 32 bpp (linear)                |
@@ -120,6 +118,98 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 - Diferente do PS2, não usa paletas (CLUT)
 - Mais próximo de APIs modernas (Direct3D)
 
+## (PS2) 
+### .dic
+**Características**
+- Little-endian
+- Baseado em RenderWare TXD
+- Estrutura em chunks (RW_TEXTURE_DICTIONARY, RW_TEXTURE_NATIVE, RW_STRUCT, RW_STRING)
+- Múltiplas texturas por arquivo
+- Texturas indexed usam swizzling PS2 (CSM1)
+- Algumas texturas usam palette RGB5551, outras RGBA8888
+- Alpha de RGBA8888 usa faixa PS2 (0–128)
+
+**Formatos de pixel suportados**
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| 4                |   PAL4  | 4 bpp indexed (swizzled)               |
+| 8                |   PAL8  | 8 bpp indexed (swizzled)             |
+| 16                |   RGB5551  | 16 bpp linear                |
+| 32                |   RGBA8888  | 32 bpp linear                |
+
+**Notas**
+- Swizzle usa padrão de VRAM do PS2
+- PAL8 utiliza remap de CLUT (CSM1)
+- PAL4 não utiliza remap de palette
+- Palettes podem existir em:
+  - RGB5551
+  - RGBA8888
+- Alpha RGBA8888 precisa ser multiplicado por 2 ao decodificar
+- Ao reimportar RGBA8888:
+  - alpha precisa voltar para faixa 0–128
+- Estrutura típica:
+  - RW_TEXTURE_DICTIONARY
+    - RW_TEXTURE_NATIVE
+      - RW_STRING (nome)
+      - RW_STRUCT (dados reais da textura)
+
+### .hvi
+**Características**
+- Little-endian
+- Textura única por arquivo
+- Estrutura simples e linear
+- Payload indexed já vem linearizado (sem swizzle)
+- Palette armazenada em BGRA8888
+- Alpha frequentemente usa faixa PS2 reduzida
+
+**Formatos de pixel suportados**
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| 8                |   PAL8  | 8 bpp indexed               |
+| BGRA8888                |   Palette  | CLUT BGRA8888             |
+
+**Notas**
+- Dados indexed não usam swizzling
+- Palette usa ordem BGRA
+- Algumas palettes usam alpha reduzido:
+  - normalmente até 0x80 ou 0x90
+- Ao decodificar:
+  - alpha precisa ser multiplicado por 2 em alguns arquivos
+- Estrutura típica:
+  - Header
+  - Palette BGRA8888
+  - Indexed payload linear
+
+## (PSP) .dic
+**Características**
+- Little-endian
+- Múltiplas texturas por arquivo
+- Estrutura sequencial simples (sem chunks RenderWare)
+- Texturas indexadas usam swizzling em blocos PSP
+- Palettes / CLUT armazenadas em RGBA8888
+- Padding fixo de 4 bytes entre palette e imagem
+- Algumas texturas usam RGBA8888 direto (sem palette)
+
+**Formatos de pixel suportados**
+| Formato                     | Descrição |     
+|--------------------------|:------:|
+| GU_PSM_T4                |   PAL4 / 4 bpp indexed (swizzled)  |
+| GU_PSM_T8                |   PAL8 / 8 bpp indexed (swizzled)  |
+| RGBA8888                |   32 bpp linear  |
+
+**Notas**
+- Texturas indexed usam CLUT RGBA8888
+- Payload indexed é armazenado em ordem swizzled do PSP
+- Swizzle usa blocos 16x8 bytes
+- Existe padding de 4 bytes após a palette, mesmo quando palette_size = 0
+- RGBA8888 não usa swizzling
+- Não utiliza RenderWare TXD (diferente do PS2)
+- Estrutura básica:
+  - Header da textura
+  - Palette / CLUT
+  - Padding (4 bytes)
+  - Dados da imagem
+    
 # Final Exam
 O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jogos Obscure clássicos. Ele armazena texturas standalone com suporte a múltiplas plataformas (PC, PS3, Xbox 360), variando principalmente em endianness, compressão e layout de memória.
 
