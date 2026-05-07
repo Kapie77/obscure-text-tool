@@ -60,6 +60,18 @@ def is_valid_texture_entry(data, off):
 def is_power_of_two(v):
         return v != 0 and (v & (v - 1)) == 0
 
+def compute_mip0_size(width, height, format_tag):
+
+    if format_tag in ["DXT1", "1TXD", "TXD1"]:
+        return ((width + 3) // 4) * ((height + 3) // 4) * 8
+
+    elif format_tag in ["DXT3", "3TXD", "TXD3",
+                         "DXT5", "5TXD", "TXD5"]:
+        return ((width + 3) // 4) * ((height + 3) // 4) * 16
+
+    else:
+        return width * height * 4
+
 # ==============================
 #        DECODERS (WII)
 # ==============================
@@ -1657,8 +1669,29 @@ def parse_finalexam_hvt(path, out_dir):
     # OFFSETS
     # =========================
     if platform == "X360":
-        mip0_size = read_u32(0x80, True)
+
+        # -------------------------
+        # X360 alignment
+        # -------------------------
+        if format_tag in ["DXT1", "1TXD", "TXD1",
+                        "DXT3", "3TXD", "TXD3",
+                        "DXT5", "5TXD", "TXD5"]:
+
+            aligned_w = align(width, 128)
+            aligned_h = align(height, 128)
+
+        else:
+            aligned_w = align(width, 32)
+            aligned_h = align(height, 32)
+
+        mip0_size = compute_mip0_size(
+            aligned_w,
+            aligned_h,
+            format_tag
+        )
+
         pixel_offset = 0x84
+
     else:
         mip0_size = read_u32(0x3C, is_be)
         pixel_offset = 0x40
