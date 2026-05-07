@@ -410,21 +410,31 @@ def ps2_swizzle_id(x, y, w):
 def remap_clut_index(i):
     return (i & 0xE7) | ((i & 0x08) << 1) | ((i & 0x10) >> 1)
 
-def decode_ps2_palette(pal):
+def decode_ps2_palette(pal, color_count=256):
+
     colors = [(0,0,0,0)] * 256
 
-    is_rgba8888 = len(pal) >= 1024
+    is_rgba8888 = len(pal) >= color_count * 4
 
     if is_rgba8888:
-        for i in range(min(256, len(pal)//4)):
+
+        n = min(color_count, len(pal) // 4)
+
+        for i in range(n):
+
             r = pal[i*4+0]
             g = pal[i*4+1]
             b = pal[i*4+2]
             a = min(255, pal[i*4+3] * 2)
 
             colors[i] = (r, g, b, a)
+
     else:
-        for i in range(min(256, len(pal)//2)):
+
+        n = min(color_count, len(pal) // 2)
+
+        for i in range(n):
+
             v = pal[i*2] | (pal[i*2+1] << 8)
 
             r = (v & 0x1F) * 255 // 31
@@ -434,12 +444,17 @@ def decode_ps2_palette(pal):
 
             colors[i] = (r, g, b, a)
 
-    # aplicar remap
-    fixed = [(0,0,0,0)] * 256
-    for i in range(256):
-        fixed[remap_clut_index(i)] = colors[i]
+    # CLUT remap somente 8bpp
+    if color_count == 256:
 
-    return fixed
+        fixed = [(0,0,0,0)] * 256
+
+        for i in range(256):
+            fixed[remap_clut_index(i)] = colors[i]
+
+        return fixed
+
+    return colors
 
 def unswizzle_8bpp(data, width, height):
     out = bytearray(width * height)
@@ -508,6 +523,110 @@ def decode_ps2_hvi(pixel_data, palette_data, width, height):
 
     return img
 
+def unpack_4bpp(raw, pixel_count):
+
+    out = bytearray(pixel_count)
+
+    di = 0
+
+    for b in raw:
+
+        if di < pixel_count:
+            out[di] = b & 0x0F
+            di += 1
+
+        if di < pixel_count:
+            out[di] = (b >> 4) & 0x0F
+            di += 1
+
+    return out
+
+def decode_ps2_4bpp(pixel_data, palette_data, width, height):
+
+    from PIL import Image
+
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    packed = unpack_4bpp(pixel_data, width * height)
+
+    indices = bytearray(width * height)
+
+    for y in range(height):
+        for x in range(width):
+
+            sid = ps2_swizzle_id(x, y, width)
+
+            if sid < len(packed):
+                indices[y * width + x] = packed[sid]
+
+    palette = decode_ps2_palette(palette_data, 16)
+
+    for y in range(height):
+        for x in range(width):
+
+            idx = indices[y * width + x] & 0x0F
+
+            pixels[x, y] = palette[idx]
+
+    return img
+
+def decode_ps2_rgba8888(pixel_data, width, height):
+
+    from PIL import Image
+
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    pos = 0
+
+    for y in range(height):
+        for x in range(width):
+
+            if pos + 3 >= len(pixel_data):
+                break
+
+            r = pixel_data[pos + 0]
+            g = pixel_data[pos + 1]
+            b = pixel_data[pos + 2]
+            a = pixel_data[pos + 3]
+
+            # PS2 alpha range
+            a = min(255, a * 2)
+
+            pixels[x, y] = (r, g, b, a)
+
+            pos += 4
+
+    return img
+
+def decode_ps2_rgb5551(pixel_data, width, height):
+
+    from PIL import Image
+
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+
+    pos = 0
+
+    for y in range(height):
+        for x in range(width):
+
+            if pos + 1 >= len(pixel_data):
+                break
+
+            v = pixel_data[pos] | (pixel_data[pos + 1] << 8)
+
+            r = (v & 0x1F) * 255 // 31
+            g = ((v >> 5) & 0x1F) * 255 // 31
+            b = ((v >> 10) & 0x1F) * 255 // 31
+            a = 255 if (v & 0x8000) else 0
+
+            pixels[x, y] = (r, g, b, a)
+
+            pos += 2
+
+    return img
 # ==============================
 #        DECODERS (XBOX)
 # ==============================
@@ -1331,8 +1450,12 @@ def parse_ps2_dic(path, out_folder):
 
         image_offset = blob_offset + 0xA8
 
-        if bpp == 8:
+        if bpp == 4:
+            image_size = (width * height + 1) // 2
+
+        elif bpp == 8:
             image_size = width * height
+
         else:
             image_size = width * height * (bpp // 8)
 
@@ -1341,10 +1464,17 @@ def parse_ps2_dic(path, out_folder):
             if palette_packet_size > 0 else -1
         )
 
-        palette_size = (
-            1024 if palette_packet_size >= 0x450
-            else (512 if palette_packet_size > 0 else 0)
-        )
+        if bpp == 4:
+            palette_size = 16 * 4
+
+        elif bpp == 8:
+            palette_size = (
+                1024 if palette_packet_size >= 0x450
+                else (512 if palette_packet_size > 0 else 0)
+            )
+
+        else:
+            palette_size = 0
 
         print(f"\n[{index}] {name}")
         print(f"Size: {width}x{height}")
@@ -1358,10 +1488,30 @@ def parse_ps2_dic(path, out_folder):
         img = None
 
         if bpp == 8 and palette_offset != -1:
+
             palette = data[palette_offset:palette_offset+palette_size]
             img = decode_ps2_8bpp(pixels, palette, width, height)
 
-        # (depois a gente adiciona 16/32 bpp)
+        elif bpp == 4 and palette_offset != -1:
+
+            palette = data[palette_offset:palette_offset+palette_size]
+            img = decode_ps2_4bpp(pixels, palette, width, height)
+
+        elif bpp == 32:
+
+            img = decode_ps2_rgba8888(
+                pixels,
+                width,
+                height
+            )
+
+        elif bpp == 16:
+
+            img = decode_ps2_rgb5551(
+                pixels,
+                width,
+                height
+            )
 
         # =========================
         # salvar
