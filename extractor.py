@@ -718,6 +718,75 @@ def decode_xbox_a1r5g5b5(data, width, height):
 
     return img
 
+# ==============================
+#        DECODERS (PSP)
+# ==============================
+def decode_psp_8bpp(pixel_data, palette_data, width, height):
+
+    from PIL import Image
+
+    img = Image.new("RGBA", (width, height))
+
+    pixels = img.load()
+
+    indices = unswizzle_psp(pixel_data, width, height, 8)
+
+    palette = []
+
+    for i in range(256):
+
+        r = palette_data[i*4 + 0]
+        g = palette_data[i*4 + 1]
+        b = palette_data[i*4 + 2]
+        a = palette_data[i*4 + 3]
+
+        palette.append((r, g, b, a))
+
+    for y in range(height):
+        for x in range(width):
+
+            idx = indices[y * width + x]
+
+            pixels[x, y] = palette[idx]
+
+    return img
+
+def decode_psp_4bpp(pixel_data, palette_data, width, height):
+
+    from PIL import Image
+
+    img = Image.new("RGBA", (width, height))
+
+    pixels = img.load()
+
+    linear_packed = unswizzle_psp(pixel_data, width, height, 4)
+
+    indices = []
+
+    for b in linear_packed:
+        indices.append(b & 0x0F)
+        indices.append((b >> 4) & 0x0F)
+
+    palette = []
+
+    for i in range(16):
+
+        r = palette_data[i*4 + 0]
+        g = palette_data[i*4 + 1]
+        b = palette_data[i*4 + 2]
+        a = palette_data[i*4 + 3]
+
+        palette.append((r, g, b, a))
+
+    for y in range(height):
+        for x in range(width):
+
+            idx = indices[y * width + x]
+
+            pixels[x, y] = palette[idx]
+
+    return img
+
 # ===============================
 #   DECODERS FINAL EXAM (.HVT)
 # ===============================
@@ -982,6 +1051,54 @@ def is_finalexam_hvt(path):
 
     except:
         return False
+
+# ===============================
+#       DETECTAR PSP .DIC
+# ===============================
+def looks_like_psp_dic(data):
+
+    print("\n[PSP CHECK]")
+
+    if len(data) < 32:
+        print("too small")
+        return False
+
+    count = int.from_bytes(data[0:4], "little")
+    print("count =", count)
+
+    name_len = int.from_bytes(data[4:8], "little")
+    print("name_len =", name_len)
+
+    if 8 + name_len + 16 > len(data):
+        print("header exceeds file")
+        return False
+
+    name = data[8:8+min(name_len, 32)]
+
+    print("raw name =", name)
+
+    p = 8 + name_len
+
+    if p + 16 > len(data):
+        print("metadata exceeds file")
+        return False
+
+    width  = int.from_bytes(data[p:p+2], "little")
+    height = int.from_bytes(data[p+2:p+4], "little")
+
+    palette_entries = int.from_bytes(data[p+4:p+6], "little")
+
+    bpp = data[p+6]
+
+    palette_size = int.from_bytes(data[p+12:p+16], "little")
+
+    print("width =", width)
+    print("height =", height)
+    print("palette_entries =", palette_entries)
+    print("bpp =", bpp)
+    print("palette_size =", palette_size)
+
+    return True
 
 # ==============================
 # CMPR (DXT1-like) decoder
@@ -1710,6 +1827,186 @@ def parse_xbox_xbr(path, out_folder):
         print("[+] Saved:", out_path)
 
 # ==============================
+#       PARSER PSP (.DIC)
+# ==============================
+def unswizzle_psp(raw, w, h, bpp):
+
+    stride = w * bpp // 8
+
+    padded_stride = (stride + 15) & ~15
+
+    row_blocks = padded_stride // 16
+
+    linear = bytearray(stride * h)
+
+    dst = 0
+
+    for y in range(h):
+        for x in range(stride):
+
+            block_x = x // 16
+            block_y = y // 8
+
+            block_index = block_x + block_y * row_blocks
+
+            src = (
+                block_index * 16 * 8
+                + (x % 16)
+                + (y % 8) * 16
+            )
+
+            if src < len(raw):
+                linear[dst] = raw[src]
+
+            dst += 1
+
+    return linear
+
+def swizzle_psp(linear, w, h, bpp):
+
+    stride = w * bpp // 8
+
+    padded_stride = (stride + 15) & ~15
+
+    padded_height = (h + 7) & ~7
+
+    row_blocks = padded_stride // 16
+
+    swizzled = bytearray(padded_stride * padded_height)
+
+    for y in range(h):
+        for x in range(stride):
+
+            block_x = x // 16
+            block_y = y // 8
+
+            block_index = block_x + block_y * row_blocks
+
+            dst = (
+                block_index * 16 * 8
+                + (x % 16)
+                + (y % 8) * 16
+            )
+
+            src = y * stride + x
+
+            if src < len(linear) and dst < len(swizzled):
+                swizzled[dst] = linear[src]
+
+    expected_size = stride * h
+
+    return swizzled[:expected_size]
+
+def parse_psp_dic(path, out_folder):
+
+    from PIL import Image
+    import os
+
+    with open(path, "rb") as f:
+        data = f.read()
+
+    count = int.from_bytes(data[0:4], "little")
+
+    print(f"[PSP DIC] Textures: {count}")
+
+    offset = 4
+
+    os.makedirs(out_folder, exist_ok=True)
+
+    for i in range(count):
+
+        name_len = int.from_bytes(data[offset:offset+4], "little")
+        offset += 4
+
+        name = data[offset:offset+name_len].decode(
+            "ascii",
+            errors="ignore"
+        )
+
+        offset += name_len
+
+        width  = int.from_bytes(data[offset:offset+2], "little")
+        height = int.from_bytes(data[offset+2:offset+4], "little")
+
+        palette_entries = int.from_bytes(data[offset+4:offset+6], "little")
+
+        bpp = data[offset+6]
+
+        palette_size = int.from_bytes(data[offset+12:offset+16], "little")
+
+        offset += 16
+
+        print(f"\n[{i}] {name}")
+        print(f"Size: {width}x{height}")
+        print(f"BPP: {bpp}")
+
+        # =========================
+        # PAL4 / PAL8
+        # =========================
+
+        if bpp in (4, 8):
+
+            palette_data = data[offset:offset+palette_size]
+
+            offset += palette_size
+
+            # 4-byte padding
+            offset += 4
+
+            image_size = (width * height * bpp) // 8
+
+            pixel_data = data[offset:offset+image_size]
+
+            offset += image_size
+
+            if bpp == 4:
+                img = decode_psp_4bpp(
+                    pixel_data,
+                    palette_data,
+                    width,
+                    height
+                )
+            else:
+                img = decode_psp_8bpp(
+                    pixel_data,
+                    palette_data,
+                    width,
+                    height
+                )
+
+        # =========================
+        # RGBA8888
+        # =========================
+
+        elif bpp == 32:
+
+            # PSP entries possuem padding de 4 bytes
+            offset += 4
+
+            image_size = width * height * 4
+
+            pixel_data = data[offset:offset+image_size]
+
+            offset += image_size
+
+            img = Image.frombytes(
+                "RGBA",
+                (width, height),
+                pixel_data
+            )
+
+        else:
+
+            print("[!] Unsupported PSP format")
+            continue
+
+        out_path = os.path.join(out_folder, name + ".png")
+
+        img.save(out_path)
+
+        print("[+] Saved:", out_path)
+
+# ==============================
 #    PARSER FINAL EXAM (.HVT)
 # ==============================
 from PIL import Image
@@ -2037,36 +2334,57 @@ if __name__ == "__main__":
     # DIC (multi-plataforma)
     # =========================
     elif ext == ".dic":
-        with open(args.input, "rb") as f:
-            data = f.read(64)
 
+        with open(args.input, "rb") as f:
+            data = f.read()
+
+        # =================================
         # PS2 (RenderWare)
+        # =================================
         if len(data) >= 4:
             rw_id = int.from_bytes(data[0:4], "little")
+
             if rw_id == 0x16:
                 print("[+] Detected PS2 DIC (RenderWare)")
                 parse_ps2_dic(args.input, final_out)
                 exit()
 
-        # Wii / PC
-        count = read_be_u32(data, 0)
+        # =================================
+        # PSP
+        # =================================
+        if looks_like_psp_dic(data):
+            print("[+] Detected PSP DIC")
+            parse_psp_dic(args.input, final_out)
+            exit()
 
-        if count > 0 and count < 4096:
-            name_len = data[7]
-            if 1 <= name_len <= 48:
-                printable = all(32 <= data[8+i] < 127 for i in range(name_len))
-                if printable:
-                    print("[+] Detected Wii DIC")
-                    parse_wii_dic(args.input, final_out)
-                else:
-                    print("[+] Detected PC DIC")
-                    parse_pc_dic(args.input, final_out)
-            else:
-                print("[+] Detected PC DIC")
-                parse_pc_dic(args.input, final_out)
-        else:
-            print("[+] Detected PC DIC (fallback)")
-            parse_pc_dic(args.input, final_out)
+        # =================================
+        # Wii
+        # =================================
+        if len(data) > 64:
+
+            count_be = read_be_u32(data, 0)
+
+            if 0 < count_be < 4096:
+
+                name_len = data[7]
+
+                if 1 <= name_len <= 48:
+
+                    printable = all(
+                        32 <= data[8+i] < 127
+                        for i in range(name_len)
+                    )
+
+                    if printable:
+                        print("[+] Detected Wii DIC")
+                        parse_wii_dic(args.input, final_out)
+                        exit()
+
+        # =================================
+        # PC fallback
+        # =================================
+        print("[+] Detected PC DIC")
+        parse_pc_dic(args.input, final_out)
         
     # =========================
     # XBR (Xbox)
