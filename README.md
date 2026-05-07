@@ -191,11 +191,11 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 - Algumas texturas usam RGBA8888 direto (sem palette)
 
 **Formatos de pixel suportados**
-| Formato                     | Descrição |     
-|--------------------------|:------:|
-| GU_PSM_T4                |   PAL4 / 4 bpp indexed (swizzled)  |
-| GU_PSM_T8                |   PAL8 / 8 bpp indexed (swizzled)  |
-| RGBA8888                |   32 bpp linear  |
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| GU_PSM_T4                |   PAL4  | 4 bpp indexed (swizzled)  |
+| GU_PSM_T8                |   PAL8  | 8 bpp indexed (swizzled)  |
+| 32               |   RGBA8888  | 32 bpp linear  |
 
 **Notas**
 - Texturas indexed usam CLUT RGBA8888
