@@ -72,6 +72,29 @@ def compute_mip0_size(width, height, format_tag):
     else:
         return width * height * 4
 
+def morton_part1(v):
+    v &= 0x0000FFFF
+    v = (v | (v << 8)) & 0x00FF00FF
+    v = (v | (v << 4)) & 0x0F0F0F0F
+    v = (v | (v << 2)) & 0x33333333
+    v = (v | (v << 1)) & 0x55555555
+    return v
+
+def morton_index(x, y):
+    return morton_part1(x) | (morton_part1(y) << 1)
+
+def morton_index_rect(x, y, width, height):
+
+    if width == height:
+        return morton_index(x, y)
+
+    if width > height:
+        block = x // height
+        return block * height * height + morton_index(x % height, y)
+
+    row_block = y // width
+    return row_block * width * width + morton_index(x, y % width)
+
 # ==============================
 #        DECODERS (WII)
 # ==============================
@@ -577,7 +600,7 @@ def decode_xbox_a1r5g5b5(data, width, height):
     return img
 
 # ===============================
-#    DECODERS FINAL EXAM (HVT)
+#   DECODERS FINAL EXAM (.HVT)
 # ===============================
 def decode_bgra(raw, width, height):
     return raw  # já está no formato correto
@@ -740,6 +763,26 @@ def decode_bgrx(raw, width, height):
 
     return bytes(out)
 
+def decode_rgba_ps3_swizzled(raw, width, height):
+
+    out = bytearray(width * height * 4)
+
+    for y in range(height):
+        for x in range(width):
+
+            src = morton_index_rect(x, y, width, height) * 4
+            dst = (y * width + x) * 4
+
+            if src + 3 >= len(raw):
+                continue
+
+            # PS3 armazena RGBA
+            out[dst + 0] = raw[src + 2]  # B
+            out[dst + 1] = raw[src + 1]  # G
+            out[dst + 2] = raw[src + 0]  # R
+            out[dst + 3] = raw[src + 3]  # A
+
+    return bytes(out)
 # ====================
 #   BUILD PALETTE
 # ====================
@@ -1517,7 +1560,7 @@ def parse_xbox_xbr(path, out_folder):
         print("[+] Saved:", out_path)
 
 # ==============================
-#     PARSER FINAL EXAM HVT
+#    PARSER FINAL EXAM (.HVT)
 # ==============================
 from PIL import Image
 
@@ -1775,8 +1818,10 @@ def parse_finalexam_hvt(path, out_dir):
             img = decode_dxt5(raw, width, height)
 
         elif format_tag == "ARGB":
+
             if platform == "PS3":
-                img = decode_rgba_ps3(raw, width, height)
+                img = decode_rgba_ps3_swizzled(raw, width, height)
+
             else:
                 img = decode_argb_be(raw, width, height)
 
