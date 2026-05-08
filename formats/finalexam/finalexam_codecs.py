@@ -119,8 +119,15 @@ def morton2(x, y):
 
 def morton_index_rect(x, y, width, height):
 
-    # Final Exam uses standard Morton layout
-    return morton2(x, y)
+    if width == height:
+        return morton2(x, y)
+
+    if width > height:
+        block = x // height
+        return block * height * height + morton2(x % height, y)
+
+    row_block = y // width
+    return row_block * width * width + morton2(x, y % width)
 
 
 # =========================================================
