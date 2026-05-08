@@ -16,7 +16,7 @@ from formats.psp.psp_dic import parse_psp_dic
 from formats.wii.wii_dic import parse_wii_dic
 
 from formats.xbox.xbox_xbr import parse_xbox_xbr
-from formats.xbox360.xbox360_hvt import parse_finalexam_hvt
+from formats.finalexam.finalexam_hvt import parse_finalexam_hvt
 
 
 # ==============================
