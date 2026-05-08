@@ -13,14 +13,13 @@ from .finalexam_codecs import (
     decode_bgra,
     decode_bgrx,
     decode_argb_be,
+    decode_rgba,
     decode_rgba_ps3_swizzled
 )
 
 # =========================================
 #    PARSER FINAL EXAM XBOX 360 (.HVT)
 # =========================================
-from PIL import Image
-
 def save_png(raw_bgra, width, height, path):
     rgba = bytearray(width * height * 4)
 
@@ -158,10 +157,13 @@ def parse_finalexam_hvt(path, out_dir):
     # =========================
     if magic == b"HVI ":
         platform = "PC"
+
     else:
         arch = data[0x24:0x28]
+
         if arch == b"X360":
             platform = "X360"
+
         else:
             platform = "PS3"
 
@@ -173,16 +175,17 @@ def parse_finalexam_hvt(path, out_dir):
         # -------------------------
         # X360 alignment
         # -------------------------
-        if format_tag in ["DXT1", "1TXD", "TXD1",
-                        "DXT3", "3TXD", "TXD3",
-                        "DXT5", "5TXD", "TXD5"]:
+        is_bc = format_tag in [
+            "DXT1", "1TXD", "TXD1",
+            "DXT3", "3TXD", "TXD3",
+            "DXT5", "5TXD", "TXD5"
+        ]
 
-            aligned_w = align(width, 128)
-            aligned_h = align(height, 128)
+        tile_texel = 4 if is_bc else 1
+        align_texels = 32 * tile_texel
 
-        else:
-            aligned_w = align(width, 32)
-            aligned_h = align(height, 32)
+        aligned_w = align(width, align_texels)
+        aligned_h = align(height, align_texels)
 
         mip0_size = compute_mip0_size(
             aligned_w,
@@ -277,7 +280,15 @@ def parse_finalexam_hvt(path, out_dir):
         elif format_tag == "ARGB":
 
             if platform == "PS3":
-                img = decode_rgba_ps3_swizzled(raw, width, height)
+
+                # PS3 Final Exam:
+                # mipmapped ARGB = swizzled
+                # single mip ARGB = linear RGBA
+
+                if mipmaps > 1:
+                    img = decode_rgba_ps3_swizzled(raw, width, height)
+                else:
+                    img = decode_rgba(raw, width, height)
 
             else:
                 img = decode_argb_be(raw, width, height)
