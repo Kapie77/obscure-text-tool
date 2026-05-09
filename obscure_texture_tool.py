@@ -18,6 +18,13 @@ from formats.wii.wii_dic import parse_wii_dic
 
 from formats.xbox.xbox_xbr import parse_xbox_xbr
 from formats.finalexam.finalexam_hvt import parse_finalexam_hvt
+from formats.xbox.xbox_xbr import XbrFile
+
+from formats.xbox.xbox_codecs import (
+    encode_xbox_r5g6b5,
+    encode_xbox_a1r5g5b5,
+    encode_xbox_a8r8g8b8,
+)
 
 # ================================
 #      Rebuild Helpers
@@ -118,48 +125,72 @@ if __name__ == "__main__":
         png_folder = args.rebuild
         print(f"[+] Rebuild mode, loading PNGs from: {png_folder}")
 
-        # =========================================================
-        # Leitura do arquivo original em memória
-        # =========================================================
-        with open(input_path, "rb") as f:
-            file_data = bytearray(f.read())
+        base_name, ext = os.path.splitext(os.path.basename(input_path))
+        output_file = f"{os.path.join(input_dir, base_name)}.new{ext}"
 
-        # Criar dic_file genérico com .Textures e .Data
-        dic_file = type("DicFile", (), {"Data": file_data, "Textures": []})()
-
-        # =========================================================
-        # Detecta tipo e popula Textures (PSP/PC/FinalExam/HVI)
-        # =========================================================
-        if ext == ".dic":
-            if looks_like_psp_dic(file_data):
-                print("[+] Detected PSP DIC")
-                # parse_psp_dic precisa preencher dic_file.Textures
-                # Se parse_psp_dic não retorna DicFile, instancie manualmente ou modifique parse_psp_dic para retornar
-                parse_psp_dic(input_path, png_folder)
-            else:
-                print("[+] Detected PC DIC")
-                parse_pc_dic(input_path, png_folder)
-
-        elif ext == ".hvt":
-            if is_finalexam_hvt(input_path):
-                print("[+] Detected Final Exam HVT")
-                parse_finalexam_hvt(input_path, png_folder)
-            else:
-                print("[!] Unsupported HVT for rebuild")
-                exit(1)
-
-        elif ext == ".hvi":
+        if ext == ".dic" or ext == ".hvt" or ext == ".hvi":
+            # usa rebuild_dic como você já tem
+            # precisa criar o dic_file com .Textures e .Data
             with open(input_path, "rb") as f:
-                magic = f.read(4)
-            if magic == b"HVI ":
-                print("[+] Detected PS2 HVI")
+                file_data = bytearray(f.read())
+
+            dic_file = type("DicFile", (), {"Data": file_data, "Textures": []})()
+
+            if ext == ".dic":
+                if looks_like_psp_dic(file_data):
+                    print("[+] Detected PSP DIC")
+                    parse_psp_dic(input_path, png_folder)
+                else:
+                    print("[+] Detected PC DIC")
+                    parse_pc_dic(input_path, png_folder)
+            elif ext == ".hvt":
+                if is_finalexam_hvt(input_path):
+                    parse_finalexam_hvt(input_path, png_folder)
+            elif ext == ".hvi":
                 parse_ps2_hvi(input_path, png_folder)
-            else:
-                print("[!] Unsupported HVI for rebuild")
-                exit(1)
+
+            # Reconstrói e salva
+            rebuild_dic(dic_file, png_folder, output_file)
+            exit(0)
+
+        elif ext == ".xbr":
+            from formats.xbox.xbox_codecs import (
+                encode_xbox_r5g6b5,
+                encode_xbox_a1r5g5b5,
+                encode_xbox_a8r8g8b8,
+            )
+            xbr = XbrFile(input_path)
+
+            for tex in xbr.Textures:
+                png_path = os.path.join(png_folder, tex.Name + ".png")
+                if not os.path.isfile(png_path):
+                    print(f"[!] PNG not found, skipping: {png_path}")
+                    continue
+
+                img = Image.open(png_path).convert("RGBA")
+                if img.size != (tex.Width, tex.Height):
+                    img = img.resize((tex.Width, tex.Height))
+                pixels = img.tobytes()
+
+                if tex.Format == 0x05:
+                    encoded = encode_xbox_r5g6b5(pixels, tex.Width, tex.Height)
+                elif tex.Format == 0x02:
+                    encoded = encode_xbox_a1r5g5b5(pixels, tex.Width, tex.Height)
+                elif tex.Format == 0x06:
+                    encoded = encode_xbox_a8r8g8b8(pixels, tex.Width, tex.Height)
+                else:
+                    print(f"[!] Unsupported Xbox format: 0x{tex.Format:02X}")
+                    continue
+
+                xbr.ReplaceImageBytes(tex, encoded, len(encoded))
+                print(f"[+] Rebuilt texture: {tex.Name}")
+
+            xbr.Save(output_file)
+            print(f"[+] Saved rebuilt file: {output_file}")
+            exit(0)
 
         else:
-            print("[!] Rebuild only supports .dic, .hvt, .hvi")
+            print("[!] Rebuild only supports .dic, .hvt, .hvi, .xbr")
             exit(1)
 
         # =========================================================
@@ -182,6 +213,38 @@ if __name__ == "__main__":
                 encoded = swizzle_psp(bytearray(pixels), tex.Width, tex.Height, 32)
             elif tex.Platform == "FinalExam":
                 encoded = DecodePs3Rgba(pixels, tex.Width, tex.Height)
+            elif tex.Platform == "Xbox":
+
+                from formats.xbox.xbox_codecs import (
+                    encode_xbox_r5g6b5,
+                    encode_xbox_a1r5g5b5,
+                    encode_xbox_a8r8g8b8,
+                )
+
+                if tex.Format == 0x05:
+                    encoded = encode_xbox_r5g6b5(
+                        pixels,
+                        tex.Width,
+                        tex.Height
+                    )
+
+                elif tex.Format == 0x02:
+                    encoded = encode_xbox_a1r5g5b5(
+                        pixels,
+                        tex.Width,
+                        tex.Height
+                    )
+
+                elif tex.Format == 0x06:
+                    encoded = encode_xbox_a8r8g8b8(
+                        pixels,
+                        tex.Width,
+                        tex.Height
+                    )
+
+                else:
+                    print(f"[!] Unsupported Xbox format: 0x{tex.Format:02X}")
+                    continue
             else:
                 # fallback linear
                 encoded = pixels
@@ -235,6 +298,12 @@ if __name__ == "__main__":
             else:
                 print("[+] Detected PC DIC")
                 parse_pc_dic(input_path, final_out)
+    
+    elif ext == ".xbr":
+
+        print("[+] Detected Xbox XBR")
+
+        dic_file = XbrFile(input_path)
 
     else:
         print("[!] Unknown file type")
