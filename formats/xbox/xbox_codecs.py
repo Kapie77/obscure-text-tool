@@ -87,3 +87,85 @@ def decode_xbox_a1r5g5b5(data, width, height):
             pixels[x, y] = (r, g, b, a)
 
     return img
+
+# ==============================
+#         ENCODERS
+# ==============================
+def encode_xbox_r5g6b5(pixels, width, height):
+
+    out = bytearray(width * height * 2)
+
+    for y in range(height):
+        for x in range(width):
+
+            src = (y * width + x) * 4
+
+            r = pixels[src + 0]
+            g = pixels[src + 1]
+            b = pixels[src + 2]
+
+            v = (
+                ((r * 31 // 255) << 11) |
+                ((g * 63 // 255) << 5) |
+                ((b * 31 // 255))
+            )
+
+            d = xbox_swizzle_offset(x, y, width, height) * 2
+
+            out[d + 0] = v & 0xFF
+            out[d + 1] = (v >> 8) & 0xFF
+
+    return bytes(out)
+
+
+def encode_xbox_a1r5g5b5(pixels, width, height):
+
+    out = bytearray(width * height * 2)
+
+    for y in range(height):
+        for x in range(width):
+
+            src = (y * width + x) * 4
+
+            r = pixels[src + 0]
+            g = pixels[src + 1]
+            b = pixels[src + 2]
+            a = pixels[src + 3]
+
+            v = (
+                ((1 if a >= 128 else 0) << 15) |
+                ((r * 31 // 255) << 10) |
+                ((g * 31 // 255) << 5) |
+                ((b * 31 // 255))
+            )
+
+            d = xbox_swizzle_offset(x, y, width, height) * 2
+
+            out[d + 0] = v & 0xFF
+            out[d + 1] = (v >> 8) & 0xFF
+
+    return bytes(out)
+
+
+def encode_xbox_a8r8g8b8(pixels, width, height):
+
+    out = bytearray(width * height * 4)
+
+    for y in range(height):
+        for x in range(width):
+
+            src = (y * width + x) * 4
+
+            r = pixels[src + 0]
+            g = pixels[src + 1]
+            b = pixels[src + 2]
+            a = pixels[src + 3]
+
+            d = xbox_swizzle_offset(x, y, width, height) * 4
+
+            out[d + 0] = b
+            out[d + 1] = g
+            out[d + 2] = r
+            out[d + 3] = a
+
+    return bytes(out)
