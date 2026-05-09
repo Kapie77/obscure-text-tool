@@ -40,6 +40,12 @@ from formats.pc.pc_codecs import (
     encode_dip_a1r5g5b5
 )
 
+from utils.detection import (
+    is_finalexam_hvt,
+    looks_like_psp_dic,
+    looks_like_wii_dic
+)
+
 # ================================
 #      Rebuild Helpers
 # ================================
@@ -252,6 +258,9 @@ if __name__ == "__main__":
                 if looks_like_psp_dic(file_data):
                     print("[+] Detected PSP DIC")
                     parse_psp_dic(input_path, png_folder)
+                elif looks_like_wii_dic(file_data):
+                    print("[+] Detected Wii DIC")
+                    parse_wii_dic(input_path, png_folder)
                 else:
                     print("[+] Detected PC DIC")
                     parse_pc_dic(input_path, png_folder)
@@ -498,6 +507,24 @@ if __name__ == "__main__":
             elif looks_like_psp_dic(data):
                 print("[+] Detected PSP DIC")
                 parse_psp_dic(input_path, final_out)
+            elif ext == ".dic":
+                with open(input_path, "rb") as f:
+                    data = f.read()
+
+                if len(data) >= 4:
+                    rw_id = int.from_bytes(data[0:4], "little")
+                    if rw_id == 0x16:
+                        print("[+] Detected PS2 DIC (RenderWare)")
+                        parse_ps2_dic(input_path, final_out)
+                    elif looks_like_psp_dic(data):
+                        print("[+] Detected PSP DIC")
+                        parse_psp_dic(input_path, final_out)
+                    elif looks_like_wii_dic(data):
+                        print("[+] Detected Wii DIC")
+                        parse_wii_dic(input_path, final_out)
+                    else:
+                        print("[+] Detected PC DIC")
+                        parse_pc_dic(input_path, final_out)
             else:
                 print("[+] Detected PC DIC")
                 parse_pc_dic(input_path, final_out)
