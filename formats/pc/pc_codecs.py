@@ -107,3 +107,50 @@ def decode_pc_r5g5b5a1(data, width, height):
             pixels[x, y] = (r, g, b, a)
 
     return img
+
+# ==============================
+#        ENCODERS (PC DIP)
+# ==============================
+def encode_dip_b8g8r8a8(img: "PIL.Image.Image") -> bytes:
+    """Converte RGBA → DIP B8G8R8A8 (PC)."""
+    img = img.convert("RGBA")
+    data = img.tobytes()  # RGBA linear
+    out = bytearray(len(data))
+    for i in range(len(data)//4):
+        r, g, b, a = data[i*4:i*4+4]
+        out[i*4+0] = b
+        out[i*4+1] = g
+        out[i*4+2] = r
+        out[i*4+3] = a
+    return bytes(out)
+
+def encode_dip_r5g6b5(img: "PIL.Image.Image") -> bytes:
+    """Converte RGBA → DIP B5G6R5 (PC)."""
+    img = img.convert("RGBA")
+    data = img.tobytes()
+    w, h = img.size
+    out = bytearray(w*h*2)
+    for i in range(w*h):
+        r = data[i*4+0] * 31 // 255
+        g = data[i*4+1] * 63 // 255
+        b = data[i*4+2] * 31 // 255
+        val = (r << 11) | (g << 5) | b
+        out[i*2+0] = val & 0xFF
+        out[i*2+1] = val >> 8
+    return bytes(out)
+
+def encode_dip_a1r5g5b5(img: "PIL.Image.Image") -> bytes:
+    """Converte RGBA → DIP B5G5R5A1 (PC)."""
+    img = img.convert("RGBA")
+    data = img.tobytes()
+    w, h = img.size
+    out = bytearray(w*h*2)
+    for i in range(w*h):
+        r = data[i*4+0] * 31 // 255
+        g = data[i*4+1] * 31 // 255
+        b = data[i*4+2] * 31 // 255
+        a = 1 if data[i*4+3] >= 128 else 0
+        val = (a << 15) | (r << 10) | (g << 5) | b
+        out[i*2+0] = val & 0xFF
+        out[i*2+1] = val >> 8
+    return bytes(out)
