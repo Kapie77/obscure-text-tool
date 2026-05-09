@@ -50,21 +50,29 @@ def decode_bgrx(raw, width, height):
 # =========================================================
 
 def decode_argb_be(raw, width, height):
-
     out = bytearray(width * height * 4)
-
     for i in range(width * height):
-
         a = raw[i*4 + 0]
         r = raw[i*4 + 1]
         g = raw[i*4 + 2]
         b = raw[i*4 + 3]
-
         out[i*4 + 0] = b
         out[i*4 + 1] = g
         out[i*4 + 2] = r
         out[i*4 + 3] = a
+    return bytes(out)
 
+def encode_argb_be(rgba, width, height):
+    out = bytearray(width * height * 4)
+    for i in range(width * height):
+        b = rgba[i*4 + 0]
+        g = rgba[i*4 + 1]
+        r = rgba[i*4 + 2]
+        a = rgba[i*4 + 3]
+        out[i*4 + 0] = a
+        out[i*4 + 1] = r
+        out[i*4 + 2] = g
+        out[i*4 + 3] = b
     return bytes(out)
 
 
@@ -81,54 +89,51 @@ def decode_argb_be(raw, width, height):
 # =========================================================
 
 def decode_rgba(raw, width, height):
-
     out = bytearray(width * height * 4)
-
     for i in range(width * height):
-
         r = raw[i*4 + 0]
         g = raw[i*4 + 1]
         b = raw[i*4 + 2]
         a = raw[i*4 + 3]
-
         out[i*4 + 0] = b
         out[i*4 + 1] = g
         out[i*4 + 2] = r
         out[i*4 + 3] = a
-
     return bytes(out)
 
+def encode_rgba(rgba, width, height):
+    out = bytearray(width * height * 4)
+    for i in range(width * height):
+        b = rgba[i*4 + 0]
+        g = rgba[i*4 + 1]
+        r = rgba[i*4 + 2]
+        a = rgba[i*4 + 3]
+        out[i*4 + 0] = r
+        out[i*4 + 1] = g
+        out[i*4 + 2] = b
+        out[i*4 + 3] = a
+    return bytes(out)
 
 # =========================================================
 #                  PS3 SWIZZLE HELPERS
 # =========================================================
 # PS3 swizzled textures use Morton/Z-order tiling.
 # =========================================================
-
 def morton2(x, y):
-
     answer = 0
-
     for i in range(16):
-
         answer |= ((x >> i) & 1) << (2 * i)
         answer |= ((y >> i) & 1) << (2 * i + 1)
-
     return answer
 
-
 def morton_index_rect(x, y, width, height):
-
     if width == height:
         return morton2(x, y)
-
     if width > height:
         block = x // height
         return block * height * height + morton2(x % height, y)
-
     row_block = y // width
     return row_block * width * width + morton2(x, y % width)
-
 
 # =========================================================
 #                PS3 SWIZZLED RGBA
@@ -142,23 +147,39 @@ def morton_index_rect(x, y, width, height):
 # Swizzled using Morton order.
 # Converted internally to BGRA.
 # =========================================================
-
 def decode_rgba_ps3_swizzled(raw, width, height):
-
     out = bytearray(width * height * 4)
-
     for y in range(height):
         for x in range(width):
-
             src = morton_index_rect(x, y, width, height) * 4
             dst = (y * width + x) * 4
-
             if src + 3 >= len(raw):
                 continue
-
             out[dst + 0] = raw[src + 2]  # B
             out[dst + 1] = raw[src + 1]  # G
             out[dst + 2] = raw[src + 0]  # R
             out[dst + 3] = raw[src + 3]  # A
-
     return bytes(out)
+
+def encode_ps3_swizzled_rgba(rgba, width, height):
+    out = bytearray(width * height * 4)
+    for y in range(height):
+        for x in range(width):
+            src = (y * width + x) * 4
+            dst = morton_index_rect(x, y, width, height) * 4
+            if dst + 3 >= len(out):
+                continue
+            out[dst + 0] = rgba[src + 2]  # R
+            out[dst + 1] = rgba[src + 1]  # G
+            out[dst + 2] = rgba[src + 0]  # B
+            out[dst + 3] = rgba[src + 3]  # A
+    return bytes(out)
+
+# =========================================================
+#             PS3 ARGB Helpers (for CLI rebuild)
+# =========================================================
+def EncodePs3Argb(rgba, width, height, swizzled=False):
+    if swizzled:
+        return encode_ps3_swizzled_rgba(rgba, width, height)
+    else:
+        return encode_rgba(rgba, width, height)
