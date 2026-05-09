@@ -1,6 +1,14 @@
 Tenha o Python e Pillow instalados, abra o cmd no diretório da ferramenta e digite:
 
-```python extractor.py NomeDaTextura.Formato(, dic, .dip, .hvt, .hvi ou .xbr)```
+Extract:
+```bash
+python obscure_texture_tool.py NomeDaTextura.Formato(, dic, .dip, .hvt, .hvi ou .xbr)
+```
+
+Rebuild:
+```bash
+python obscure_texture_tool.py NomeDaTextura.Formato --rebuild PastaDasTexturas/
+```
 
 # Supported Games
 
