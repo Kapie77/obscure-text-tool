@@ -5,7 +5,7 @@ from utils.binary import read_be_u32
 from utils.detection import is_valid_texture_entry
 from utils.palettes import read_palette
 
-from .wii_codecs import (
+from formats.wii.wii_codecs import (
     decode_i8,
     decode_ia8,
     decode_rgb5a3,
