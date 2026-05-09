@@ -48,9 +48,10 @@ def is_power_of_two(v):
 #    DETECÇÃO DE .HVT (OBSCURE OU FINAL EXAM)
 # =============================================
 def is_finalexam_hvt(path):
+
     try:
         with open(path, "rb") as f:
-            data = f.read(0x40)  # lê mais pra garantir
+            data = f.read(0x20)
 
         magic = data[0:4]
 
@@ -60,17 +61,10 @@ def is_finalexam_hvt(path):
 
         # PS3 / X360
         if magic == b" IVH":
-            # heurística: Final Exam sempre tem formato ASCII em 0x14
-            fmt = data[0x14:0x18]
 
-            # formatos válidos conhecidos
-            known = [
-                b"DXT1", b"DXT3", b"DXT5",
-                b"TXD1", b"TXD3", b"TXD5",
-                b"ARGB", b"XRGB",
-            ]
-
-            return fmt in known
+            # Final Exam tem HEAD em 0x0C
+            if data[0x0C:0x10] == b"HEAD":
+                return True
 
         return False
 
@@ -151,5 +145,25 @@ def looks_like_psp_dic(data):
             return False
 
     print("[+] PSP signature validated")
+
+    return True
+
+
+# ===============================
+#       DETECTAR WII .DIC
+# ===============================
+def looks_like_wii_dic(data):
+    # Precisa ter pelo menos um header mínimo
+    if len(data) < 16:
+        return False
+
+    count = int.from_bytes(data[0:4], "big")  # Wii DIC usa big-endian
+    if count <= 0 or count > 4096:
+        return False
+
+    # Valida primeiro nome
+    name_len = data[7] if len(data) > 7 else 0
+    if name_len < 1 or name_len > 48:
+        return False
 
     return True
