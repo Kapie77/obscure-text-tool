@@ -1,3 +1,4 @@
+import sys
 import os
 import argparse
 from PIL import Image
@@ -576,7 +577,7 @@ if __name__ == "__main__":
             if rw_id == 0x16:
                 print("[+] Detected PS2 DIC (RenderWare)")
                 parse_ps2_dic(args.input, final_out)
-                exit()
+                sys.exit()
 
         # =================================
         # PSP
@@ -584,7 +585,7 @@ if __name__ == "__main__":
         if looks_like_psp_dic(data):
             print("[+] Detected PSP DIC")
             parse_psp_dic(args.input, final_out)
-            exit()
+            sys.exit()
 
         # =================================
         # Wii
@@ -607,7 +608,7 @@ if __name__ == "__main__":
                     if printable:
                         print("[+] Detected Wii DIC")
                         parse_wii_dic(args.input, final_out)
-                        exit()
+                        sys.exit()
 
         # =================================
         # PC fallback
