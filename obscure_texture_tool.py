@@ -477,11 +477,13 @@ if __name__ == "__main__":
     final_out = os.path.join(input_dir, base)
     os.makedirs(final_out, exist_ok=True)
 
+    # --- HVT ---
     if ext == ".hvt":
         if is_finalexam_hvt(input_path):
             print("[+] Detected Final Exam HVT")
             parse_finalexam_hvt(input_path, final_out)
 
+    # --- HVI ---
     elif ext == ".hvi":
         with open(input_path, "rb") as f:
             magic = f.read(4)
@@ -491,6 +493,7 @@ if __name__ == "__main__":
         else:
             print("[!] Invalid HVI file")
 
+    # --- DIC ---
     elif ext == ".dic":
         with open(input_path, "rb") as f:
             data = f.read()
@@ -525,12 +528,14 @@ if __name__ == "__main__":
                 print("[+] Detected PC DIC")
                 parse_pc_dic(input_path, final_out)
     
+    # --- XBR ---
     elif ext == ".xbr":
 
         print("[+] Detected Xbox XBR")
 
         dic_file = XbrFile(input_path)
 
+    # --- Fallback desconhecido ---
     else:
         print("[!] Unknown file type")
 
