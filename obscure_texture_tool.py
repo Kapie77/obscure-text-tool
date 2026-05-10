@@ -9,7 +9,8 @@ from utils.binary import read_u32_le
 
 from utils.detection import (
     is_finalexam_hvt,
-    looks_like_psp_dic
+    looks_like_psp_dic,
+    looks_like_wii_dic
 )
 
 from formats.pc.pc_dic import parse_pc_dic
@@ -39,12 +40,6 @@ from formats.pc.pc_codecs import (
     encode_dip_b8g8r8a8,
     encode_dip_r5g6b5,
     encode_dip_a1r5g5b5
-)
-
-from utils.detection import (
-    is_finalexam_hvt,
-    looks_like_psp_dic,
-    looks_like_wii_dic
 )
 
 # ================================
@@ -273,7 +268,7 @@ if __name__ == "__main__":
 
             # Reconstrói e salva
             rebuild_dic(dic_file, png_folder, output_file)
-            exit(0)
+            sys.exit(0)
 
         elif ext == ".xbr":
             from formats.xbox.xbox_codecs import (
@@ -309,7 +304,7 @@ if __name__ == "__main__":
 
             xbr.Save(output_file)
             print(f"[+] Saved rebuilt file: {output_file}")
-            exit(0)
+            sys.exit(0)
         
         elif ext == ".dip":
             # =========================
@@ -400,11 +395,11 @@ if __name__ == "__main__":
             with open(output_file, "wb") as f:
                 f.write(data)
             print(f"[+] Saved rebuilt DIP file: {output_file}")
-            exit(0)
+            sys.exit(0)
 
         else:
             print("[!] Rebuild only supports .dic, .hvt, .hvi, .xbr")
-            exit(1)
+            sys.exit(1)
 
         # =========================================================
         # Itera sobre as texturas e reencode
@@ -474,7 +469,7 @@ if __name__ == "__main__":
             f.write(dic_file.Data)
 
         print(f"[+] Saved rebuilt file: {output_file}")
-        exit(0)
+        sys.exit(0)
 
     # =========================
     # Caso normal: extração
