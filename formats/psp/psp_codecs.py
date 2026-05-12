@@ -1,7 +1,7 @@
 from PIL import Image
 
 # ========================================
-#              PSP SWIZZLE
+#               SWIZZLE
 # ========================================
 
 def swizzle_psp(linear, w, h, bpp):
@@ -38,7 +38,9 @@ def swizzle_psp(linear, w, h, bpp):
 
     return bytes(swizzled[:expected_size])
 
-
+# ========================================
+#              UNSWIZZLE
+# ========================================
 def unswizzle_psp(raw, w, h, bpp):
 
     stride = w * bpp // 8
@@ -74,9 +76,8 @@ def unswizzle_psp(raw, w, h, bpp):
 
 
 # ========================================
-#             PSP PALETTES
+#               PALETTES
 # ========================================
-
 def decode_psp_palette(palette_data, color_count):
 
     palette = []
@@ -92,11 +93,41 @@ def decode_psp_palette(palette_data, color_count):
 
     return palette
 
+# ========================================
+#              ENCODERS
+# ========================================
+def encode_psp_rgba8888(img):
+
+    rgba = img.convert("RGBA")
+
+    width, height = rgba.size
+
+    raw = rgba.tobytes()
+
+    linear = bytearray(width * height * 4)
+
+    for i in range(width * height):
+
+        r = raw[i*4 + 0]
+        g = raw[i*4 + 1]
+        b = raw[i*4 + 2]
+        a = raw[i*4 + 3]
+
+        linear[i*4 + 0] = r
+        linear[i*4 + 1] = g
+        linear[i*4 + 2] = b
+        linear[i*4 + 3] = a
+
+    return swizzle_psp(
+        bytes(linear),
+        width,
+        height,
+        32
+    )
 
 # ========================================
-#              PSP PAL4
+#              DECODERS
 # ========================================
-
 def decode_psp_4bpp(pixel_data, palette_data, width, height):
 
     img = Image.new("RGBA", (width, height))
@@ -128,10 +159,7 @@ def decode_psp_4bpp(pixel_data, palette_data, width, height):
     return img
 
 
-# ========================================
-#              PSP PAL8
-# ========================================
-
+# =====  PAL8 ===== #
 def decode_psp_8bpp(pixel_data, palette_data, width, height):
 
     img = Image.new("RGBA", (width, height))
@@ -157,10 +185,7 @@ def decode_psp_8bpp(pixel_data, palette_data, width, height):
     return img
 
 
-# ========================================
-#            PSP RGBA8888
-# ========================================
-
+# ======= RGBA8888 ======= #
 def decode_psp_rgba8888(pixel_data, width, height):
 
     linear = unswizzle_psp(
@@ -190,32 +215,34 @@ def decode_psp_rgba8888(pixel_data, width, height):
         bytes(out)
     )
 
+# ========================================
+#              PSP HVI PAL8
+# ========================================
+def decode_psp_hvi(pixel_data, palette_data, width, height):
 
-def encode_psp_rgba8888(img):
+    img = Image.new("RGBA", (width, height))
 
-    rgba = img.convert("RGBA")
+    pixels = img.load()
 
-    width, height = rgba.size
-
-    raw = rgba.tobytes()
-
-    linear = bytearray(width * height * 4)
-
-    for i in range(width * height):
-
-        r = raw[i*4 + 0]
-        g = raw[i*4 + 1]
-        b = raw[i*4 + 2]
-        a = raw[i*4 + 3]
-
-        linear[i*4 + 0] = r
-        linear[i*4 + 1] = g
-        linear[i*4 + 2] = b
-        linear[i*4 + 3] = a
-
-    return swizzle_psp(
-        bytes(linear),
+    # HVI PSP usa swizzle PSP normal
+    indices = unswizzle_psp(
+        pixel_data,
         width,
         height,
-        32
+        8
     )
+
+    palette = decode_psp_palette(
+        palette_data,
+        256
+    )
+
+    for y in range(height):
+        for x in range(width):
+
+            idx = indices[y * width + x]
+
+            if idx < 256:
+                pixels[x, y] = palette[idx]
+
+    return img

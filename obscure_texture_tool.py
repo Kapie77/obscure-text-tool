@@ -16,9 +16,10 @@ from utils.detection import (
 from formats.pc.pc_dic import parse_pc_dic
 from formats.pc.pc_dip import parse_pc_dip
 from formats.ps2.ps2_dic import parse_ps2_dic
-from formats.ps2.ps2_hvi import parse_ps2_hvi
 from formats.psp.psp_dic import parse_psp_dic
 from formats.wii.wii_dic import parse_wii_dic
+
+from formats.common.ps2_psp_hvi import parse_ps2_psp_hvi
 
 from formats.xbox.xbox_xbr import parse_xbox_xbr
 from formats.finalexam.finalexam_hvt import parse_finalexam_hvt
@@ -41,6 +42,8 @@ from formats.pc.pc_codecs import (
     encode_dip_r5g6b5,
     encode_dip_a1r5g5b5
 )
+
+from formats.psp.psp_codecs import encode_psp_rgba8888
 
 # ================================
 #      Rebuild Helpers
@@ -201,19 +204,6 @@ def rebuild_pc_dip_file(dip_path: str, png_folder: str, output_path: str):
         f.write(data)
     print(f"[+] Saved rebuilt DIP file: {output_path}")
 
-# ================================
-#       PSP RGBA8888 Encoder
-# ================================
-def encode_psp_rgba8888(pixels: bytes, width: int, height: int) -> bytes:
-    """
-    PSP armazena linear bytes como R,G,B,A mas swizzled no arquivo final.
-    """
-    from formats.psp.psp_codecs import swizzle_psp
-    # converte de RGBA (Pillow) para ordem R,G,B,A do PSP
-    linear = bytearray(pixels)
-    return swizzle_psp(linear, width, height, 32)
-
-
 # ==============================
 #           CLI
 # ==============================
@@ -242,9 +232,8 @@ if __name__ == "__main__":
         base_name, ext = os.path.splitext(os.path.basename(input_path))
         output_file = f"{os.path.join(input_dir, base_name)}.new{ext}"
 
-        if ext == ".dic" or ext == ".hvt" or ext == ".hvi":
-            # usa rebuild_dic como você já tem
-            # precisa criar o dic_file com .Textures e .Data
+        if ext in (".dic", ".hvt", ".hvi"):
+
             with open(input_path, "rb") as f:
                 file_data = bytearray(f.read())
 
@@ -264,11 +253,11 @@ if __name__ == "__main__":
                 if is_finalexam_hvt(input_path):
                     parse_finalexam_hvt(input_path, png_folder)
             elif ext == ".hvi":
-                parse_ps2_hvi(input_path, png_folder)
+                parse_ps2_psp_hvi(input_path, png_folder)
 
             # Reconstrói e salva
             rebuild_dic(dic_file, png_folder, output_file)
-            sys.exit(0)
+            exit(0)
 
         elif ext == ".xbr":
             from formats.xbox.xbox_codecs import (
@@ -304,7 +293,7 @@ if __name__ == "__main__":
 
             xbr.Save(output_file)
             print(f"[+] Saved rebuilt file: {output_file}")
-            sys.exit(0)
+            exit(0)
         
         elif ext == ".dip":
             # =========================
@@ -395,11 +384,11 @@ if __name__ == "__main__":
             with open(output_file, "wb") as f:
                 f.write(data)
             print(f"[+] Saved rebuilt DIP file: {output_file}")
-            sys.exit(0)
+            exit(0)
 
         else:
             print("[!] Rebuild only supports .dic, .hvt, .hvi, .xbr")
-            sys.exit(1)
+            exit(1)
 
         # =========================================================
         # Itera sobre as texturas e reencode
@@ -469,76 +458,13 @@ if __name__ == "__main__":
             f.write(dic_file.Data)
 
         print(f"[+] Saved rebuilt file: {output_file}")
-        sys.exit(0)
+        exit(0)
 
-    # =========================
-    # Caso normal: extração
-    # =========================
+    # ==========================
+    #         EXTRAÇÃO
+    # ===========================
     final_out = os.path.join(input_dir, base)
     os.makedirs(final_out, exist_ok=True)
-
-    # --- HVT ---
-    if ext == ".hvt":
-        if is_finalexam_hvt(input_path):
-            print("[+] Detected Final Exam HVT")
-            parse_finalexam_hvt(input_path, final_out)
-
-    # --- HVI ---
-    elif ext == ".hvi":
-        with open(input_path, "rb") as f:
-            magic = f.read(4)
-        if magic == b"HVI ":
-            print("[+] Detected PS2 HVI")
-            parse_ps2_hvi(input_path, final_out)
-        else:
-            print("[!] Invalid HVI file")
-
-    # --- DIC ---
-    elif ext == ".dic":
-        with open(input_path, "rb") as f:
-            data = f.read()
-
-        if len(data) >= 4:
-            rw_id = int.from_bytes(data[0:4], "little")
-            if rw_id == 0x16:
-                print("[+] Detected PS2 DIC (RenderWare)")
-                parse_ps2_dic(input_path, final_out)
-            elif looks_like_psp_dic(data):
-                print("[+] Detected PSP DIC")
-                parse_psp_dic(input_path, final_out)
-            elif ext == ".dic":
-                with open(input_path, "rb") as f:
-                    data = f.read()
-
-                if len(data) >= 4:
-                    rw_id = int.from_bytes(data[0:4], "little")
-                    if rw_id == 0x16:
-                        print("[+] Detected PS2 DIC (RenderWare)")
-                        parse_ps2_dic(input_path, final_out)
-                    elif looks_like_psp_dic(data):
-                        print("[+] Detected PSP DIC")
-                        parse_psp_dic(input_path, final_out)
-                    elif looks_like_wii_dic(data):
-                        print("[+] Detected Wii DIC")
-                        parse_wii_dic(input_path, final_out)
-                    else:
-                        print("[+] Detected PC DIC")
-                        parse_pc_dic(input_path, final_out)
-            else:
-                print("[+] Detected PC DIC")
-                parse_pc_dic(input_path, final_out)
-    
-    # --- XBR ---
-    elif ext == ".xbr":
-
-        print("[+] Detected Xbox XBR")
-
-        dic_file = XbrFile(input_path)
-
-    # --- Fallback desconhecido ---
-    else:
-        print("[!] Unknown file type")
-
     # =========================
     # HVT (Wii ou Final Exam)
     # =========================
@@ -547,16 +473,23 @@ if __name__ == "__main__":
             print("[+] Detected Final Exam HVT")
             parse_finalexam_hvt(args.input, final_out)
 
-    # =========================
-    # HVI (PS2)
-    # =========================
+    # =================
+    # HVI (PS2/PSP)
+    # =================
     elif ext == ".hvi":
+
         with open(args.input, "rb") as f:
             magic = f.read(4)
 
         if magic == b"HVI ":
-            print("[+] Detected PS2 HVI")
-            parse_ps2_hvi(args.input, final_out)
+
+            print("[+] Detected HVI")
+
+            parse_ps2_psp_hvi(
+                args.input,
+                final_out
+            )
+
         else:
             print("[!] Invalid HVI file")
 
@@ -577,7 +510,7 @@ if __name__ == "__main__":
             if rw_id == 0x16:
                 print("[+] Detected PS2 DIC (RenderWare)")
                 parse_ps2_dic(args.input, final_out)
-                sys.exit()
+                exit()
 
         # =================================
         # PSP
@@ -585,7 +518,7 @@ if __name__ == "__main__":
         if looks_like_psp_dic(data):
             print("[+] Detected PSP DIC")
             parse_psp_dic(args.input, final_out)
-            sys.exit()
+            exit()
 
         # =================================
         # Wii
@@ -608,7 +541,7 @@ if __name__ == "__main__":
                     if printable:
                         print("[+] Detected Wii DIC")
                         parse_wii_dic(args.input, final_out)
-                        sys.exit()
+                        exit()
 
         # =================================
         # PC fallback
