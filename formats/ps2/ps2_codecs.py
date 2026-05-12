@@ -296,3 +296,137 @@ def decode_psp_hvi(pixels, palette, width, height):
         (width, height),
         bytes(out)
     )
+
+
+# ==============================
+#        ENCODERS (PS2)
+# ==============================
+
+# ===== RGBA8888 ===== #
+def encode_ps2_rgba8888(img, width, height):
+
+    pixels = img.convert("RGBA").tobytes()
+
+    out = bytearray()
+
+    for i in range(0, len(pixels), 4):
+
+        r = pixels[i]
+        g = pixels[i + 1]
+        b = pixels[i + 2]
+        a = pixels[i + 3]
+
+        # PS2 usa alpha 0-128 normalmente
+        a = a // 2
+
+        out += bytes([r, g, b, a])
+
+    return bytes(out)
+
+# ====== RGB5551 ====== #
+def encode_ps2_rgb5551(img, width, height):
+
+    pixels = img.convert("RGBA").load()
+
+    out = bytearray()
+
+    for y in range(height):
+        for x in range(width):
+
+            r, g, b, a = pixels[x, y]
+
+            r5 = r >> 3
+            g5 = g >> 3
+            b5 = b >> 3
+
+            a1 = 1 if a >= 128 else 0
+
+            value = (
+                r5 |
+                (g5 << 5) |
+                (b5 << 10) |
+                (a1 << 15)
+            )
+
+            out += value.to_bytes(2, "little")
+
+    return bytes(out)
+
+# ===== 8BPP ===== #
+def encode_ps2_8bpp(img, width, height):
+
+    from PIL import Image
+
+    # converte para indexed 256 cores
+    pal_img = img.convert(
+        "P",
+        palette=Image.ADAPTIVE,
+        colors=256
+    )
+
+    # índices dos pixels
+    pixel_indices = pal_img.tobytes()
+
+    # palette RGBA
+    raw_palette = pal_img.getpalette()
+
+    palette = bytearray()
+
+    for i in range(256):
+
+        r = raw_palette[i * 3 + 0]
+        g = raw_palette[i * 3 + 1]
+        b = raw_palette[i * 3 + 2]
+
+        a = 128
+
+        palette += bytes([r, g, b, a])
+
+    return bytes(pixel_indices), bytes(palette)
+
+# ===== 4BPP ===== #
+def encode_ps2_4bpp(img, width, height):
+
+    from PIL import Image
+
+    # indexed 16 cores
+    pal_img = img.convert(
+        "P",
+        palette=Image.ADAPTIVE,
+        colors=16
+    )
+
+    indices = pal_img.tobytes()
+
+    packed = bytearray()
+
+    # empacota 2 pixels por byte
+    for i in range(0, len(indices), 2):
+
+        p0 = indices[i] & 0x0F
+
+        if i + 1 < len(indices):
+            p1 = indices[i + 1] & 0x0F
+        else:
+            p1 = 0
+
+        packed.append(
+            p0 | (p1 << 4)
+        )
+
+    # palette
+    raw_palette = pal_img.getpalette()
+
+    palette = bytearray()
+
+    for i in range(16):
+
+        r = raw_palette[i * 3 + 0]
+        g = raw_palette[i * 3 + 1]
+        b = raw_palette[i * 3 + 2]
+
+        a = 128
+
+        palette += bytes([r, g, b, a])
+
+    return bytes(packed), bytes(palette)
