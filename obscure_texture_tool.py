@@ -14,7 +14,10 @@ from utils.detection import (
 )
 
 from formats.pc.pc_dic import parse_pc_dic
-from formats.pc.pc_dip import parse_pc_dip
+from formats.pc.pc_dip import (
+    parse_pc_dip,
+    rebuild_pc_dip_file
+)
 from formats.ps2.ps2_dic import parse_ps2_dic
 from formats.psp.psp_dic import parse_psp_dic
 from formats.wii.wii_dic import parse_wii_dic
@@ -105,104 +108,6 @@ def rebuild_dic(dic_file, png_folder, out_path):
     with open(out_path, "wb") as f:
         f.write(dic_data)
     print(f"[+] Saved rebuilt file: {out_path}")
-
-# =========================
-# Rebuild PC DIP (dedicado)
-# =========================
-def rebuild_pc_dip_file(dip_path: str, png_folder: str, output_path: str):
-    from formats.pc.pc_codecs import encode_dip_b8g8r8a8, encode_dip_r5g6b5, encode_dip_a1r5g5b5
-    from utils.binary import read_u32_le
-    from PIL import Image
-    import os
-
-    with open(dip_path, "rb") as f:
-        data = bytearray(f.read())
-
-    offset = 4  # pula zero inicial
-    if offset + 4 > len(data):
-        raise ValueError("Arquivo DIP muito pequeno")
-    count = read_u32_le(data, offset)
-    offset += 4
-
-    print(f"[DIP] Total textures: {count}")
-
-    for i in range(count):
-        # skip desconhecido
-        if offset + 4 > len(data):
-            print(f"[!] EOF inesperado no skip para texture {i}")
-            break
-        offset += 4
-
-        # nome da textura
-        if offset + 4 > len(data):
-            print(f"[!] EOF inesperado lendo name length para texture {i}")
-            break
-        name_len = read_u32_le(data, offset); offset += 4
-
-        if offset + name_len > len(data):
-            print(f"[!] EOF inesperado lendo nome para texture {i}")
-            break
-        name = data[offset:offset+name_len].decode("ascii", errors="ignore"); offset += name_len
-
-        # header
-        if offset + 7*4 > len(data):
-            print(f"[!] EOF inesperado lendo header para texture {name}")
-            break
-        mipmaps = read_u32_le(data, offset); offset += 4
-        alpha_flag = read_u32_le(data, offset); offset += 4
-        onebit_alpha = read_u32_le(data, offset); offset += 4
-        width = read_u32_le(data, offset); offset += 4
-        height = read_u32_le(data, offset); offset += 4
-        fmt = read_u32_le(data, offset); offset += 4
-
-        # mip0
-        if offset + 4 > len(data):
-            print(f"[!] EOF inesperado lendo mip0 size para {name}")
-            break
-        mip0_size = read_u32_le(data, offset)
-        mip0_offset = offset + 4
-
-        if mip0_offset + mip0_size > len(data):
-            print(f"[!] EOF inesperado lendo mip0 data para {name}")
-            break
-
-        # não avançamos offset para mipmaps adicionais
-        offset = mip0_offset + mip0_size
-
-        # ======================
-        # Rebuild com PNG
-        # ======================
-        png_path = os.path.join(png_folder, name + ".png")
-        if not os.path.isfile(png_path):
-            print(f"[!] PNG não encontrado, pulando {name}")
-            continue
-
-        img = Image.open(png_path).convert("RGBA")
-        if img.size != (width, height):
-            img = img.resize((width, height))
-
-        # encode
-        if fmt == 21:
-            encoded = encode_dip_b8g8r8a8(img)
-        elif fmt == 23:
-            encoded = encode_dip_r5g6b5(img)
-        elif fmt == 25:
-            encoded = encode_dip_a1r5g5b5(img)
-        else:
-            print(f"[!] Formato DIP não suportado {fmt} para {name}")
-            continue
-
-        if len(encoded) != mip0_size:
-            raise ValueError(f"{name}: encoded size {len(encoded)} != original {mip0_size}")
-
-        # sobrescreve mip0
-        data[mip0_offset:mip0_offset+mip0_size] = encoded
-        print(f"[+] Rebuilt texture: {name}")
-
-    # salva DIP rebuild
-    with open(output_path, "wb") as f:
-        f.write(data)
-    print(f"[+] Saved rebuilt DIP file: {output_path}")
 
 # ==============================
 #           CLI
@@ -296,169 +201,20 @@ if __name__ == "__main__":
             exit(0)
         
         elif ext == ".dip":
-            # =========================
-            # Rebuild DIP (PC)
-            # =========================
-            from formats.pc.pc_codecs import (
-                encode_dip_b8g8r8a8,
-                encode_dip_r5g6b5,
-                encode_dip_a1r5g5b5
-            )
-
-            from PIL import Image
 
             print("[+] Detected PC DIP")
-            with open(input_path, "rb") as f:
-                data = bytearray(f.read())
 
-            offset = 4  # skip leading zero
-            count = read_u32_le(data, offset)
-            offset += 4
+            rebuild_pc_dip_file(
+                input_path,
+                png_folder,
+                output_file
+            )
 
-            for i in range(count):
-                # lê header
-                offset += 4  # skip
-                name_len = read_u32_le(data, offset)
-                offset += 4
-                name = data[offset:offset+name_len].decode("ascii", errors="ignore")
-                offset += name_len
-
-                mipmaps = read_u32_le(data, offset); offset += 4
-                alpha_flag = read_u32_le(data, offset); offset += 4
-                onebit_alpha = read_u32_le(data, offset); offset += 4
-                width = read_u32_le(data, offset); offset += 4
-                height = read_u32_le(data, offset); offset += 4
-                fmt = read_u32_le(data, offset); offset += 4
-
-                # =========================
-                # Lê todos os mipmaps para avançar offset
-                # =========================
-                first_mip_offset = None
-                first_mip_size = None
-
-                for m in range(mipmaps):
-                    if offset + 4 > len(data):
-                        print(f"[!] EOF inesperado lendo mip size {m} para {name}")
-                        break
-                    mip_size = read_u32_le(data, offset)
-                    offset += 4
-
-                    if offset + mip_size > len(data):
-                        print(f"[!] EOF inesperado lendo mip data {m} para {name}")
-                        break
-
-                    if m == 0:
-                        first_mip_offset = offset
-                        first_mip_size = mip_size
-
-                    offset += mip_size  # pula para o próximo mipmap ou próxima textura
-
-                png_path = os.path.join(png_folder, name + ".png")
-                if not os.path.isfile(png_path):
-                    print(f"[!] PNG not found, skipping: {png_path}")
-                    continue
-
-                img = Image.open(png_path).convert("RGBA")
-                if img.size != (width, height):
-                    img = img.resize((width, height))
-
-                # Encode according to DIP format
-                if fmt == 21:
-                    encoded = encode_dip_b8g8r8a8(img)
-                elif fmt == 23:
-                    encoded = encode_dip_r5g6b5(img)
-                elif fmt == 25:
-                    encoded = encode_dip_a1r5g5b5(img)
-                else:
-                    print(f"[!] Unsupported DIP format {fmt} for texture {name}")
-                    continue
-
-                if len(encoded) != first_mip_size:
-                    raise ValueError(f"Texture {name}: encoded size {len(encoded)} != original {first_mip_size}")
-
-                # Replace first mip in data
-                data[first_mip_offset:first_mip_offset+first_mip_size] = encoded
-                print(f"[+] Rebuilt texture: {name}")
-
-            # Save rebuilt DIP
-            with open(output_file, "wb") as f:
-                f.write(data)
-            print(f"[+] Saved rebuilt DIP file: {output_file}")
             exit(0)
 
         else:
             print("[!] Rebuild only supports .dic, .hvt, .hvi, .xbr")
             exit(1)
-
-        # =========================================================
-        # Itera sobre as texturas e reencode
-        # =========================================================
-        for tex in dic_file.Textures:
-            png_path = os.path.join(png_folder, tex.Name + ".png")
-            if not os.path.isfile(png_path):
-                print(f"[!] PNG not found, skipping: {png_path}")
-                continue
-
-            img = Image.open(png_path).convert("RGBA")
-            if img.size != (tex.Width, tex.Height):
-                img = img.resize((tex.Width, tex.Height))
-
-            pixels = img.tobytes()
-
-            # encode de acordo com plataforma
-            if tex.Platform == "PSP" and tex.Format == "PSP_RGBA8888":
-                encoded = swizzle_psp(bytearray(pixels), tex.Width, tex.Height, 32)
-            elif tex.Platform == "FinalExam":
-                encoded = DecodePs3Rgba(pixels, tex.Width, tex.Height)
-            elif tex.Platform == "Xbox":
-
-                from formats.xbox.xbox_codecs import (
-                    encode_xbox_r5g6b5,
-                    encode_xbox_a1r5g5b5,
-                    encode_xbox_a8r8g8b8,
-                )
-
-                if tex.Format == 0x05:
-                    encoded = encode_xbox_r5g6b5(
-                        pixels,
-                        tex.Width,
-                        tex.Height
-                    )
-
-                elif tex.Format == 0x02:
-                    encoded = encode_xbox_a1r5g5b5(
-                        pixels,
-                        tex.Width,
-                        tex.Height
-                    )
-
-                elif tex.Format == 0x06:
-                    encoded = encode_xbox_a8r8g8b8(
-                        pixels,
-                        tex.Width,
-                        tex.Height
-                    )
-
-                else:
-                    print(f"[!] Unsupported Xbox format: 0x{tex.Format:02X}")
-                    continue
-            else:
-                # fallback linear
-                encoded = pixels
-
-            # substitui no arquivo
-            start = tex.ImageOffset
-            dic_file.Data[start:start+len(encoded)] = encoded
-            print(f"[+] Rebuilt texture: {tex.Name}")
-
-        # =========================================================
-        # Salva arquivo rebuild direto como .new
-        # =========================================================
-        with open(output_file, "wb") as f:
-            f.write(dic_file.Data)
-
-        print(f"[+] Saved rebuilt file: {output_file}")
-        exit(0)
 
     # ==========================
     #         EXTRAÇÃO
