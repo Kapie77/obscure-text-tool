@@ -12,22 +12,26 @@ from utils.detection import (
     looks_like_wii_dic
 )
 
-# import .dic de pc #
-from formats.pc.pc_dic import (
-    parse_pc_dic,
-    rebuild_pc_dic_file
-)
 # import .dip #
 from formats.pc.pc_dip import (
     parse_pc_dip,
     rebuild_pc_dip_file
 )
 
-# import .dic de ps2 #
+# import .dic (pc) #
+from formats.pc.pc_dic import (
+    parse_pc_dic,
+    rebuild_pc_dic_file
+)
+
+# import .dic (ps2) #
 from formats.ps2.ps2_dic import (
     parse_ps2_dic,
     rebuild_ps2_dic_file
 )
+
+# import .dic (psp) #
+from formats.psp.psp_dic import rebuild_psp_dic_file
 
 from formats.ps2.ps2_codecs import (
     # decode
@@ -114,9 +118,18 @@ if __name__ == "__main__":
                     exit(0)
 
             # PSP
+            # === psp (.dic) ==== #
             if looks_like_psp_dic(data):
-                print("[+] PSP DIC rebuild not implemented")
-                exit(1)
+
+                print("[+] PSP signature validated")
+
+                rebuild_psp_dic_file(
+                    input_path,
+                    png_folder,
+                    output_file
+                )
+
+                exit(0)
 
             # Wii
             if looks_like_wii_dic(data):
@@ -206,21 +219,32 @@ if __name__ == "__main__":
         # =================================
         # PS2 (RenderWare)
         # =================================
-        if len(data) >= 4:
-            rw_id = int.from_bytes(data[0:4], "little")
+        rw_id = int.from_bytes(data[0:4], "little")
 
-            if rw_id == 0x16:
-                print("[+] Detected PS2 DIC (RenderWare)")
-                parse_ps2_dic(args.input, final_out)
-                exit()
+        if rw_id == 0x16:
+
+            print("[+] Detected PS2 DIC")
+
+            parse_ps2_dic(
+                input_path,
+                final_out
+            )
+
+            exit(0)
 
         # =================================
         # PSP
         # =================================
         if looks_like_psp_dic(data):
+
             print("[+] Detected PSP DIC")
-            parse_psp_dic(args.input, final_out)
-            exit()
+
+            parse_psp_dic(
+                input_path,
+                final_out
+            )
+
+            exit(0)
 
         # =================================
         # Wii
