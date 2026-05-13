@@ -203,11 +203,18 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
 
         blob_offset = -1
 
+        # =========================
+        # parse subchunks
+        # =========================
         for cc in iter_chunks(data, c["body_start"], c["body_end"]):
 
+            # texture name
             if cc["id"] == RW_STRING:
 
-                raw = data[cc["body_start"]:cc["body_end"]]
+                raw = data[
+                    cc["body_start"]:
+                    cc["body_end"]
+                ]
 
                 extracted = (
                     raw.split(b"\x00")[0]
@@ -218,9 +225,18 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
                 if extracted:
                     name = extracted
 
-            elif cc["id"] == RW_STRUCT and cc["size"] > 64 and blob_offset < 0:
+            # big RW struct
+            elif (
+                cc["id"] == RW_STRUCT and
+                cc["size"] > 64 and
+                blob_offset < 0
+            ):
 
-                if data[cc["body_start"]:cc["body_start"]+4] == b"PS2\x00":
+                # skip "PS2\0"
+                if data[
+                    cc["body_start"]:
+                    cc["body_start"] + 4
+                ] == b"PS2\x00":
                     continue
 
                 blob_offset = cc["body_start"]
@@ -232,10 +248,20 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
         # =========================
         # texture info
         # =========================
+        width = int.from_bytes(
+            data[blob_offset+0x0C:blob_offset+0x10],
+            "little"
+        )
 
-        width  = int.from_bytes(data[blob_offset+0x0C:blob_offset+0x10], "little")
-        height = int.from_bytes(data[blob_offset+0x10:blob_offset+0x14], "little")
-        bpp    = int.from_bytes(data[blob_offset+0x14:blob_offset+0x18], "little")
+        height = int.from_bytes(
+            data[blob_offset+0x10:blob_offset+0x14],
+            "little"
+        )
+
+        bpp = int.from_bytes(
+            data[blob_offset+0x14:blob_offset+0x18],
+            "little"
+        )
 
         image_packet_size = int.from_bytes(
             data[blob_offset+0x3C:blob_offset+0x40],
@@ -247,19 +273,22 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
             "little"
         )
 
+        image_offset = blob_offset + 0xA8
+
         palette_offset = (
             blob_offset + 0x50 + image_packet_size + 0x58
-            if palette_packet_size > 0 else -1
+            if palette_packet_size > 0
+            else -1
         )
-
-        image_offset = blob_offset + 0xA8
 
         # =========================
         # image size
         # =========================
         if bpp == 4:
 
-            image_size = (width * height + 1) // 2
+            image_size = (
+                (width * height + 1) // 2
+            )
 
         elif bpp == 8:
 
@@ -267,10 +296,12 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
 
         else:
 
-            image_size = width * height * (bpp // 8)
+            image_size = (
+                width * height * (bpp // 8)
+            )
 
         # =========================
-        # palette info
+        # palette size
         # =========================
         if bpp == 4:
 
@@ -279,38 +310,63 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
         elif bpp == 8:
 
             palette_size = (
-                1024 if palette_packet_size >= 0x450
-                else (512 if palette_packet_size > 0 else 0)
+                1024
+                if palette_packet_size >= 0x450
+                else (
+                    512
+                    if palette_packet_size > 0
+                    else 0
+                )
             )
 
         else:
 
             palette_size = 0
 
+        # =========================
+        # debug
+        # =========================
+        print(f"\n[{index}] {name}")
+        print(f"Size: {width}x{height}")
+        print(f"BPP: {bpp}")
 
         # =========================
         # load png
         # =========================
-
         png_path = os.path.join(
             png_folder,
             name + ".png"
         )
 
         if not os.path.isfile(png_path):
+
             print(f"[!] PNG not found: {name}")
+
             index += 1
             continue
 
-        img = Image.open(png_path).convert("RGBA")
+        img = Image.open(
+            png_path
+        ).convert("RGBA")
 
+        # =========================
+        # resize if needed
+        # =========================
         if img.size != (width, height):
-            img = img.resize((width, height))
+
+            print(
+                f"[!] Resizing {name}: "
+                f"{img.size} -> {(width, height)}"
+            )
+
+            img = img.resize(
+                (width, height),
+                Image.LANCZOS
+            )
 
         # =========================
         # encode
         # =========================
-
         encoded = None
         encoded_palette = None
 
@@ -341,16 +397,27 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
         # =========================
         elif bpp == 8:
 
-            palette = data[
+            if palette_offset == -1:
+
+                print(
+                    f"[!] Missing palette: {name}"
+                )
+
+                index += 1
+                continue
+
+            original_palette = data[
                 palette_offset:
                 palette_offset + palette_size
             ]
 
-            encoded, encoded_palette = encode_ps2_8bpp(
-                img,
-                width,
-                height,
-                palette
+            encoded, encoded_palette = (
+                encode_ps2_8bpp(
+                    img,
+                    width,
+                    height,
+                    original_palette
+                )
             )
 
         # =========================
@@ -358,28 +425,44 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
         # =========================
         elif bpp == 4:
 
-            palette = data[
+            if palette_offset == -1:
+
+                print(
+                    f"[!] Missing palette: {name}"
+                )
+
+                index += 1
+                continue
+
+            original_palette = data[
                 palette_offset:
                 palette_offset + palette_size
             ]
 
-            encoded, encoded_palette = encode_ps2_4bpp(
-                img,
-                width,
-                height,
-                palette
+            encoded, encoded_palette = (
+                encode_ps2_4bpp(
+                    img,
+                    width,
+                    height,
+                    original_palette
+                )
             )
 
         # =========================
-        # validation
+        # unsupported
         # =========================
         if encoded is None:
 
-            print(f"[!] Unsupported rebuild format: {name}")
+            print(
+                f"[!] Unsupported format: {name}"
+            )
 
             index += 1
             continue
 
+        # =========================
+        # validate size
+        # =========================
         if len(encoded) != image_size:
 
             raise ValueError(
@@ -388,29 +471,46 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
             )
 
         # =========================
-        # replace texture
+        # replace image
         # =========================
         data[
-            image_offset:image_offset+image_size
+            image_offset:
+            image_offset + image_size
         ] = encoded
 
-        if bpp in (4, 8):
+        # =========================
+        # replace palette
+        # =========================
+        if (
+            encoded_palette is not None and
+            palette_offset != -1 and
+            palette_size > 0
+        ):
 
-            data[
-                palette_offset:
-                palette_offset + palette_size
-            ] = encoded_palette
+            if len(encoded_palette) != palette_size:
 
+                print(
+                    f"[!] Palette size mismatch "
+                    f"({len(encoded_palette)} != "
+                    f"{palette_size})"
+                )
+
+            else:
+
+                data[
+                    palette_offset:
+                    palette_offset + palette_size
+                ] = encoded_palette
 
         print(f"[+] Rebuilt: {name}")
 
         index += 1
 
     # =========================
-    # save
+    # save rebuilt file
     # =========================
-
     with open(output_path, "wb") as f:
         f.write(data)
 
-    print(f"[+] Saved rebuilt file: {output_path}")
+    print(f"\n[+] Saved rebuilt file:")
+    print(output_path)
