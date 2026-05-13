@@ -12,6 +12,7 @@ python obscure_texture_tool.py NomeDaTextura.Formato --rebuild PastaDasTexturas/
 rebuild de .dip de pc = ok
 rebuild .dic de pc = ok
 rebuild .dic de ps2 = ok
+rebuild .dic de psp = ok
 
 # Supported Games
 
