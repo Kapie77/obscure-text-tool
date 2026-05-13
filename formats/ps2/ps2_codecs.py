@@ -11,9 +11,47 @@ def ps2_swizzle_id(x, y, w):
     byte = ((y >> 1) & 1) + ((x >> 2) & 2)
     return block + column + byte
 
-
+# ==============================
+#           OTHERS
+# ==============================
 def remap_clut_index(i):
     return (i & 0xE7) | ((i & 0x08) << 1) | ((i & 0x10) >> 1)
+
+def pack_4bpp(indices):
+
+    raw = bytearray((len(indices) + 1) // 2)
+
+    for i in range(0, len(indices), 2):
+
+        lo = indices[i] & 0x0F
+
+        hi = (
+            (indices[i + 1] & 0x0F)
+            if i + 1 < len(indices)
+            else 0
+        )
+
+        raw[i // 2] = lo | (hi << 4)
+
+    return bytes(raw)
+
+def unpack_4bpp(raw, pixel_count):
+
+    out = bytearray(pixel_count)
+
+    di = 0
+
+    for b in raw:
+
+        if di < pixel_count:
+            out[di] = b & 0x0F
+            di += 1
+
+        if di < pixel_count:
+            out[di] = (b >> 4) & 0x0F
+            di += 1
+
+    return out
 
 # ==============================
 #         PS2 UNSWIZZLE
@@ -129,24 +167,6 @@ def decode_ps2_8bpp(pixel_data, palette_data, width, height):
                 pixels[x, y] = palette[idx]
 
     return img
-
-def unpack_4bpp(raw, pixel_count):
-
-    out = bytearray(pixel_count)
-
-    di = 0
-
-    for b in raw:
-
-        if di < pixel_count:
-            out[di] = b & 0x0F
-            di += 1
-
-        if di < pixel_count:
-            out[di] = (b >> 4) & 0x0F
-            di += 1
-
-    return out
 
 def decode_ps2_4bpp(pixel_data, palette_data, width, height):
 
@@ -353,80 +373,167 @@ def encode_ps2_rgb5551(img, width, height):
     return bytes(out)
 
 # ===== 8BPP ===== #
-def encode_ps2_8bpp(img, width, height):
+def nearest_palette_index(r, g, b, a, palette):
 
-    from PIL import Image
+    best = 0
+    best_d = 999999999
 
-    # converte para indexed 256 cores
-    pal_img = img.convert(
-        "P",
-        palette=Image.ADAPTIVE,
-        colors=256
-    )
+    for i, (pr, pg, pb, pa) in enumerate(palette):
 
-    # índices dos pixels
-    pixel_indices = pal_img.tobytes()
+        dr = r - pr
+        dg = g - pg
+        db = b - pb
+        da = a - pa
 
-    # palette RGBA
-    raw_palette = pal_img.getpalette()
-
-    palette = bytearray()
-
-    for i in range(256):
-
-        r = raw_palette[i * 3 + 0]
-        g = raw_palette[i * 3 + 1]
-        b = raw_palette[i * 3 + 2]
-
-        a = 128
-
-        palette += bytes([r, g, b, a])
-
-    return bytes(pixel_indices), bytes(palette)
-
-# ===== 4BPP ===== #
-def encode_ps2_4bpp(img, width, height):
-
-    from PIL import Image
-
-    # indexed 16 cores
-    pal_img = img.convert(
-        "P",
-        palette=Image.ADAPTIVE,
-        colors=16
-    )
-
-    indices = pal_img.tobytes()
-
-    packed = bytearray()
-
-    # empacota 2 pixels por byte
-    for i in range(0, len(indices), 2):
-
-        p0 = indices[i] & 0x0F
-
-        if i + 1 < len(indices):
-            p1 = indices[i + 1] & 0x0F
-        else:
-            p1 = 0
-
-        packed.append(
-            p0 | (p1 << 4)
+        d = (
+            dr * dr +
+            dg * dg +
+            db * db +
+            da * da * 2
         )
 
-    # palette
-    raw_palette = pal_img.getpalette()
+        if d < best_d:
+            best_d = d
+            best = i
 
-    palette = bytearray()
+    return best
 
-    for i in range(16):
 
-        r = raw_palette[i * 3 + 0]
-        g = raw_palette[i * 3 + 1]
-        b = raw_palette[i * 3 + 2]
+def encode_ps2_8bpp(img, width, height, palette_data):
 
-        a = 128
+    img = img.convert("RGBA")
 
-        palette += bytes([r, g, b, a])
+    src = img.load()
 
-    return bytes(packed), bytes(palette)
+    palette = decode_ps2_palette(
+        palette_data,
+        256
+    )
+
+    indices = bytearray(width * height)
+
+    # =========================
+    # find nearest palette color
+    # =========================
+    for y in range(height):
+        for x in range(width):
+
+            r, g, b, a = src[x, y]
+
+            best = 0
+            best_dist = 999999999
+
+            for i in range(256):
+
+                pr, pg, pb, pa = palette[i]
+
+                dr = r - pr
+                dg = g - pg
+                db = b - pb
+                da = a - pa
+
+                dist = (
+                    dr * dr +
+                    dg * dg +
+                    db * db +
+                    da * da
+                )
+
+                if dist < best_dist:
+                    best_dist = dist
+                    best = i
+
+            indices[y * width + x] = best
+
+    # =========================
+    # swizzle
+    # =========================
+    swizzled = bytearray(width * height)
+
+    for y in range(height):
+        for x in range(width):
+
+            sid = ps2_swizzle_id(
+                x,
+                y,
+                width
+            )
+
+            if sid < len(swizzled):
+
+                swizzled[sid] = indices[
+                    y * width + x
+                ]
+
+    return bytes(swizzled), palette_data
+
+# ===== 4BPP ===== #
+def encode_ps2_4bpp(img, width, height, palette_data):
+
+    img = img.convert("RGBA")
+
+    src = img.load()
+
+    palette = decode_ps2_palette(
+        palette_data,
+        16
+    )
+
+    indices = bytearray(width * height)
+
+    # =========================
+    # nearest color
+    # =========================
+    for y in range(height):
+        for x in range(width):
+
+            r, g, b, a = src[x, y]
+
+            best = 0
+            best_dist = 999999999
+
+            for i in range(16):
+
+                pr, pg, pb, pa = palette[i]
+
+                dr = r - pr
+                dg = g - pg
+                db = b - pb
+                da = a - pa
+
+                dist = (
+                    dr * dr +
+                    dg * dg +
+                    db * db +
+                    da * da
+                )
+
+                if dist < best_dist:
+                    best_dist = dist
+                    best = i
+
+            indices[y * width + x] = best
+
+    # =========================
+    # swizzle
+    # =========================
+    swizzled = bytearray(width * height)
+
+    for y in range(height):
+        for x in range(width):
+
+            sid = ps2_swizzle_id(
+                x,
+                y,
+                width
+            )
+
+            if sid < len(swizzled):
+
+                swizzled[sid] = indices[
+                    y * width + x
+                ]
+
+    packed = pack_4bpp(swizzled)
+
+    return packed, palette_data

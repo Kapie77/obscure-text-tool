@@ -29,6 +29,20 @@ from formats.ps2.ps2_dic import (
     rebuild_ps2_dic_file
 )
 
+from formats.ps2.ps2_codecs import (
+    # decode
+    decode_ps2_8bpp,
+    decode_ps2_4bpp,
+    decode_ps2_rgba8888,
+    decode_ps2_rgb5551,
+
+    # encode
+    encode_ps2_8bpp,
+    encode_ps2_4bpp,
+    encode_ps2_rgba8888,
+    encode_ps2_rgb5551,
+)
+
 from formats.psp.psp_dic import parse_psp_dic
 from formats.wii.wii_dic import parse_wii_dic
 
@@ -88,8 +102,16 @@ if __name__ == "__main__":
                 rw_id = int.from_bytes(data[0:4], "little")
 
                 if rw_id == 0x16:
-                    print("[+] PS2 DIC rebuild not implemented")
-                    exit(1)
+
+                    print("[+] Detected PS2 DIC")
+
+                    rebuild_ps2_dic_file(
+                        input_path,
+                        png_folder,
+                        output_file
+                    )
+
+                    exit(0)
 
             # PSP
             if looks_like_psp_dic(data):

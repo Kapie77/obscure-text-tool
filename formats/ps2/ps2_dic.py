@@ -4,12 +4,15 @@ from PIL import Image
 from utils.renderware import iter_chunks
 
 from .ps2_codecs import (
+    # decode
     decode_ps2_8bpp,
     decode_ps2_4bpp,
     decode_ps2_rgba8888,
     decode_ps2_rgb5551,
 
-
+    # encode
+    encode_ps2_8bpp,
+    encode_ps2_4bpp,
     encode_ps2_rgba8888,
     encode_ps2_rgb5551,
 )
@@ -251,14 +254,39 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
 
         image_offset = blob_offset + 0xA8
 
+        # =========================
+        # image size
+        # =========================
         if bpp == 4:
+
             image_size = (width * height + 1) // 2
 
         elif bpp == 8:
+
             image_size = width * height
 
         else:
+
             image_size = width * height * (bpp // 8)
+
+        # =========================
+        # palette info
+        # =========================
+        if bpp == 4:
+
+            palette_size = 16 * 4
+
+        elif bpp == 8:
+
+            palette_size = (
+                1024 if palette_packet_size >= 0x450
+                else (512 if palette_packet_size > 0 else 0)
+            )
+
+        else:
+
+            palette_size = 0
+
 
         # =========================
         # load png
@@ -313,10 +341,16 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
         # =========================
         elif bpp == 8:
 
+            palette = data[
+                palette_offset:
+                palette_offset + palette_size
+            ]
+
             encoded, encoded_palette = encode_ps2_8bpp(
                 img,
                 width,
-                height
+                height,
+                palette
             )
 
         # =========================
@@ -324,10 +358,16 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
         # =========================
         elif bpp == 4:
 
+            palette = data[
+                palette_offset:
+                palette_offset + palette_size
+            ]
+
             encoded, encoded_palette = encode_ps2_4bpp(
                 img,
                 width,
-                height
+                height,
+                palette
             )
 
         # =========================
@@ -354,16 +394,13 @@ def rebuild_ps2_dic_file(path, png_folder, output_path):
             image_offset:image_offset+image_size
         ] = encoded
 
-        # =========================
-        # replace palette
-        # =========================
-        if encoded_palette is not None and palette_offset != -1:
-
-            palette_size = len(encoded_palette)
+        if bpp in (4, 8):
 
             data[
-                palette_offset:palette_offset+palette_size
+                palette_offset:
+                palette_offset + palette_size
             ] = encoded_palette
+
 
         print(f"[+] Rebuilt: {name}")
 
