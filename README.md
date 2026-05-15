@@ -21,6 +21,8 @@ rebuild .dic de wii = em andamento
 --
 rebuild .xbr de xbox = ok
 --
+rebuild .hvt de pc/ps3/xbox 360 = em andamento
+--
 
 # Supported Games
 
