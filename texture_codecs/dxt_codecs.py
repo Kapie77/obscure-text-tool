@@ -1,9 +1,10 @@
+# .dic de wii e .hvi do final exam compartilham essas coisas abaixo
+
 from PIL import Image
 
 # ==============================
 # CMPR (DXT1-like) decoder
 # ==============================
-
 def decode_cmpr_block(block):
     c0 = (block[0] << 8) | block[1]
     c1 = (block[2] << 8) | block[3]
