@@ -18,6 +18,9 @@ rebuild .dic de ps2 = ok
 rebuild .dic de psp = ok
 --
 rebuild .dic de wii = em andamento
+--
+rebuild .xbr de xbox = ok
+--
 
 # Supported Games
 
