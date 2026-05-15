@@ -56,7 +56,9 @@ from formats.xbox.xbox_xbr import parse_xbox_xbr
 from formats.finalexam.finalexam_hvt import parse_finalexam_hvt
 from formats.xbox.xbox_xbr import XbrFile
 
+# encode do .xbr de xbox
 from formats.xbox.xbox_codecs import (
+    # encode
     encode_xbox_r5g6b5,
     encode_xbox_a1r5g5b5,
     encode_xbox_a8r8g8b8,
@@ -167,13 +169,17 @@ if __name__ == "__main__":
         # =========================
         elif ext == ".xbr":
 
-            # seu código atual do xbr aqui
+            from formats.xbox.xbox_xbr import XbrFile, rebuild_xbr
+
+            print("[+] Detected Xbox XBR")
+
+            # Carrega o arquivo XBR
+            xbr = XbrFile(input_path)
+
+            # Reconstrói usando os PNGs da pasta
+            rebuild_xbr(xbr, png_folder, output_file)
 
             exit(0)
-
-        else:
-            print("[!] Rebuild not supported")
-            exit(1)
 
     # ==========================
     #         EXTRAÇÃO

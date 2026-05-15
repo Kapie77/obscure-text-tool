@@ -1,13 +1,23 @@
 import os
+from PIL import Image
+
+from .xbox_codecs import (
+    encode_xbox_r5g6b5,
+    encode_xbox_a1r5g5b5,
+    encode_xbox_a8r8g8b8,
+)
 
 from .xbox_codecs import (
     decode_xbox_r5g6b5,
     decode_xbox_a1r5g5b5,
     decode_xbox_a8r8g8b8,
+    encode_xbox_r5g6b5,
+    encode_xbox_a1r5g5b5,
+    encode_xbox_a8r8g8b8
 )
 
 # ==============================
-#       PARSER XBOX .XBR
+#          EXTRACT
 # ==============================
 def parse_xbox_xbr(path, out_folder):
 
@@ -330,3 +340,46 @@ class XbrFile:
 
         with open(out_path, "wb") as f:
             f.write(self.Data)
+
+# ==============================
+#          REBUILD
+# ==============================
+def rebuild_xbr(xbr: XbrFile, png_folder: str, output_file: str):
+    """
+    Rebuild an Xbox XBR file using PNGs from a folder.
+    """
+
+    print(f"[+] Rebuilding XBR using PNGs from: {png_folder}")
+
+    for tex in xbr.Textures:
+        png_name = tex.Name + ".png"
+        png_path = os.path.join(png_folder, png_name)
+
+        if not os.path.exists(png_path):
+            print(f"[!] PNG not found for texture {tex.Name}, keeping original")
+            continue
+
+        print(f"[{tex.Index}] Rebuilding {tex.Name} from {png_name}")
+
+        # Load RGBA data
+        img = Image.open(png_path).convert("RGBA")
+        width, height = img.size
+        rgba = img.tobytes()  # bytes in RGBA order
+
+        # Encode according to Xbox format
+        if tex.Format == 0x05:  # R5G6B5
+            encoded = encode_xbox_r5g6b5(rgba, width, height)
+        elif tex.Format == 0x02:  # A1R5G5B5
+            encoded = encode_xbox_a1r5g5b5(rgba, width, height)
+        elif tex.Format == 0x06:  # A8R8G8B8
+            encoded = encode_xbox_a8r8g8b8(rgba, width, height)
+        else:
+            print(f"[!] Unsupported format 0x{tex.Format:02X} for {tex.Name}, skipping")
+            continue
+
+        # Replace level 0 image bytes in XBR file
+        xbr.ReplaceImageBytes(tex, encoded, len(encoded))
+
+    # Save rebuilt XBR
+    xbr.Save(output_file)
+    print(f"[+] Rebuilt XBR saved as {output_file}")
