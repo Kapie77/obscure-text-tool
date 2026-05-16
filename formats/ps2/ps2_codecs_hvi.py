@@ -12,7 +12,7 @@ def ps2_swizzle_id(x, y, w):
     return block + column + byte
 
 # ==============================
-#           OTHERS
+#           HELPERS
 # ==============================
 def remap_clut_index(i):
     return (i & 0xE7) | ((i & 0x08) << 1) | ((i & 0x10) >> 1)
@@ -21,7 +21,7 @@ def pack_4bpp(indices):
     raw = bytearray((len(indices) + 1) // 2)
     for i in range(0, len(indices), 2):
         lo = indices[i] & 0x0F
-        hi = (indices[i + 1] & 0x0F) if i + 1 < len(indices) else 0
+        hi = indices[i + 1] & 0x0F if i + 1 < len(indices) else 0
         raw[i // 2] = lo | (hi << 4)
     return bytes(raw)
 
@@ -38,83 +38,49 @@ def unpack_4bpp(raw, pixel_count):
     return out
 
 # ==============================
-#       DECODERS (HVI)
+#       PALETTE / HELPERS
 # ==============================
 def decode_ps2_palette(pal, color_count=256):
+    """Converte paleta BGRA do HVI em RGBA tuples"""
+    colors = [(0, 0, 0, 0)] * color_count
+    scale_alpha = max(pal[i] for i in range(3, len(pal), 4)) <= 0x90
 
-    colors = [(0,0,0,0)] * 256
-
-    is_rgba8888 = len(pal) >= color_count * 4
-
-    if is_rgba8888:
-
-        n = min(color_count, len(pal) // 4)
-
-        for i in range(n):
-
-            r = pal[i*4+0]
-            g = pal[i*4+1]
-            b = pal[i*4+2]
-            a = min(255, pal[i*4+3] * 2)
-
-            colors[i] = (r, g, b, a)
-
-    else:
-
-        n = min(color_count, len(pal) // 2)
-
-        for i in range(n):
-
-            v = pal[i*2] | (pal[i*2+1] << 8)
-
-            r = (v & 0x1F) * 255 // 31
-            g = ((v >> 5) & 0x1F) * 255 // 31
-            b = ((v >> 10) & 0x1F) * 255 // 31
-            a = 255 if (v & 0x8000) else 0
-
-            colors[i] = (r, g, b, a)
-
-    # CLUT remap somente 8bpp
-    if color_count == 256:
-
-        fixed = [(0,0,0,0)] * 256
-
-        for i in range(256):
-            fixed[remap_clut_index(i)] = colors[i]
-
-        return fixed
-
+    for i in range(color_count):
+        b, g, r, a = pal[i*4:i*4+4]
+        if scale_alpha:
+            a = min(255, a*2)
+        colors[i] = (r, g, b, a)
     return colors
 
+def nearest_palette_index(r, g, b, a, palette):
+    """Retorna índice exato se houver match, senão o mais próximo"""
+    for i, (pr, pg, pb, pa) in enumerate(palette):
+        if (r, g, b, a) == (pr, pg, pb, pa):
+            return i
+    # fallback nearest
+    best = 0
+    best_d = 1_000_000
+    for i, (pr, pg, pb, pa) in enumerate(palette):
+        dr, dg, db, da = r-pr, g-pg, b-pb, a-pa
+        d = dr*dr + dg*dg + db*db + da*da
+        if d < best_d:
+            best_d = d
+            best = i
+    return best
+
+# ==============================
+#       DECODERS (HVI)
+# ==============================
 def decode_ps2_hvi(pixel_data, palette_data, width, height):
     """Decode PS2 8bpp HVI linear"""
     img = Image.new("RGBA", (width, height))
     pixels = img.load()
+    palette = decode_ps2_palette(palette_data, 256)
 
-    # pixels já são lineares
-    indices = pixel_data
-
-    # detectar se precisa escalar alpha
-    max_alpha = max(palette_data[i] for i in range(3, len(palette_data), 4))
-    scale_alpha = max_alpha <= 0x90
-
-    # palette é BGRA
-    palette = []
-    for i in range(256):
-        b = palette_data[i*4 + 0]
-        g = palette_data[i*4 + 1]
-        r = palette_data[i*4 + 2]
-        a = palette_data[i*4 + 3]
-        if scale_alpha:
-            a = min(255, a * 2)
-        palette.append((r, g, b, a))
-
-    # aplicar pixels
     for y in range(height):
         for x in range(width):
-            idx = indices[y * width + x]
-            if idx < 256:
-                pixels[x, y] = palette[idx]
+            idx = pixel_data[y*width + x]
+            pixels[x, y] = palette[idx] if idx < 256 else (0,0,0,0)
 
     return img
 
@@ -122,33 +88,14 @@ def decode_psp_hvi(pixels, palette, width, height):
     """Decode PSP 8bpp HVI linear (unswizzle)"""
     out = bytearray(width * height * 4)
     for i, idx in enumerate(pixels):
-        p = idx * 4
-        d = i * 4
-        r, g, b, a = palette[p+0], palette[p+1], palette[p+2], palette[p+3]
-        out[d+0] = r
-        out[d+1] = g
-        out[d+2] = b
-        out[d+3] = a
+        p = idx*4
+        d = i*4
+        r, g, b, a = palette[p:p+4]
+        out[d:d+4] = bytes([r, g, b, a])
     return Image.frombytes("RGBA", (width, height), bytes(out))
 
 # ==============================
-#       PALETTE / HELPERS
-# ==============================
-def nearest_palette_index(r, g, b, a, palette):
-    best = 0
-    best_d = 999999999
-    for i, (pr, pg, pb, pa) in enumerate(palette):
-        dr, dg, db, da = r - pr, g - pg, b - pb, a - pa
-        d = dr*dr + dg*dg + db*db + da*da*2  # alpha com peso maior
-        if d < best_d:
-            best_d = d
-            best = i
-            if d == 0:
-                break
-    return best
-
-# ==============================
-#        ENCODERS (HVI)
+#       ENCODERS (HVI)
 # ==============================
 def encode_ps2_8bpp_hvi(img, width, height, palette_data):
     """HVI 8bpp linear (sem swizzle)"""
@@ -175,20 +122,21 @@ def encode_ps2_4bpp_hvi(img, width, height, palette_data):
     packed = pack_4bpp(indices)
     return packed, palette_data
 
-def encode_ps2_hvi(img, width, height, palette_data):
-    """Rebuild HVI 8bpp PS2 com swizzle"""
+def encode_ps2_hvi(img, width, height, palette_data, pixel_data):
+    """Rebuild HVI 8bpp PS2 linear (sem swizzle), preservando pixels idênticos"""
     img = img.convert("RGBA")
     src = img.load()
     palette = decode_ps2_palette(palette_data, 256)
-    indices = bytearray(width*height)
+    linear_indices = bytearray(width*height)
+
     for y in range(height):
         for x in range(width):
             r, g, b, a = src[x, y]
-            indices[y*width + x] = nearest_palette_index(r, g, b, a, palette)
-    # swizzle PS2
-    swizzled = bytearray(width*height)
-    for y in range(height):
-        for x in range(width):
-            sid = ps2_swizzle_id(x, y, width)
-            swizzled[sid] = indices[y*width + x]
-    return swizzled, palette_data
+            idx = pixel_data[y*width + x]
+            pr, pg, pb, pa = palette[idx]
+            if (r, g, b, a) == (pr, pg, pb, pa):
+                linear_indices[y*width + x] = idx
+            else:
+                linear_indices[y*width + x] = nearest_palette_index(r, g, b, a, palette)
+
+    return bytes(linear_indices), palette_data
