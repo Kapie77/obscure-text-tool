@@ -3,7 +3,7 @@ from PIL import Image
 
 from utils.renderware import iter_chunks
 
-from .ps2_codecs import (
+from .ps2_codecs_dic import (
     # decode
     decode_ps2_8bpp,
     decode_ps2_4bpp,
