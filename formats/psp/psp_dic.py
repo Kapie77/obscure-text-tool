@@ -2,7 +2,7 @@ import os
 
 from PIL import Image
 
-from .psp_codecs import (
+from .psp_codecs_dic import (
     #decodes
     decode_psp_4bpp,
     decode_psp_8bpp,

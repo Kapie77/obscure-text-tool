@@ -10,8 +10,9 @@ from formats.ps2.ps2_codecs_hvi import (
 )
 
 # PSP CODECS
-from formats.psp.psp_codecs import (
-    decode_psp_8bpp  # apenas o que existe
+from formats.psp.psp_codecs_hvi import (
+    decode_psp_hvi,  # CORRETO
+    encode_psp_hvi,  # opcional para rebuild futuro
 )
 
 # ==================================
@@ -51,7 +52,7 @@ def parse_ps2_psp_hvi(path, out_folder):
         img = decode_ps2_hvi(pixels, palette, width, height)
     else:
         print("[+] HVI platform: PSP")
-        img = decode_psp_8bpp(pixels, palette, width, height)
+        img = decode_psp_hvi(pixels, palette, width, height)
 
     os.makedirs(out_folder, exist_ok=True)
     base = os.path.splitext(os.path.basename(path))[0]

@@ -34,11 +34,13 @@ from formats.ps2.ps2_dic import (
 # import .dic (psp) #
 from formats.psp.psp_dic import rebuild_psp_dic_file
 
+# import .hvi (psp/ps2) #
+from formats.common.ps2_psp_hvi import parse_ps2_psp_hvi
+
 # import .hvi (psp) #
 from formats.common.ps2_psp_hvi import (
-    decode_ps2_hvi,
+    decode_psp_hvi,
     #parse_ps2_psp_hvi,
-    #decode_psp_hvi,
     # encode_psp_hvi
 )
 
@@ -52,8 +54,6 @@ from formats.ps2.ps2_codecs_hvi import (
 
 from formats.psp.psp_dic import parse_psp_dic
 from formats.wii.wii_dic import parse_wii_dic
-
-from formats.common.ps2_psp_hvi import parse_ps2_psp_hvi
 
 from formats.xbox.xbox_xbr import parse_xbox_xbr
 from formats.finalexam.finalexam_hvt import parse_finalexam_hvt
