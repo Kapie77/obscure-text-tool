@@ -119,24 +119,32 @@ def decode_psp_hvi(pixel_data, palette_data, width, height):
 #       ENCODERS (HVI)
 # ==============================
 def encode_psp_hvi(img, width, height, palette_data):
-    """Rebuild PSP 8bpp HVI (aplica swizzle 8x8)"""
+    """
+    Rebuild PSP HVI 8bpp linear (sem swizzle)
+    img          : PIL RGBA
+    width/height : dimensões da imagem
+    palette_data : bytes da paleta original (256*4)
+    Retorna: bytes(linear_indices), bytes(palette_data)
+    """
     img = img.convert("RGBA")
     src = img.load()
-    palette = decode_psp_palette(palette_data, 256)
 
-    linear_indices = bytearray(width*height)
+    # Converte paleta BGRA -> RGBA tuples
+    palette = [(palette_data[i*4 + 2], palette_data[i*4 + 1], palette_data[i*4 + 0], palette_data[i*4 + 3]) for i in range(256)]
 
-    # mapear pixels para paleta
+    indices = bytearray(width * height)
     for y in range(height):
         for x in range(width):
             r, g, b, a = src[x, y]
-            linear_indices[y*width + x] = nearest_palette_index(r, g, b, a, palette)
+            # procura o índice mais próximo
+            best = 0
+            best_d = 1_000_000
+            for i, (pr, pg, pb, pa) in enumerate(palette):
+                dr, dg, db, da = r - pr, g - pg, b - pb, a - pa
+                d = dr*dr + dg*dg + db*db + da*da
+                if d < best_d:
+                    best_d = d
+                    best = i
+            indices[y*width + x] = best
 
-    # aplicar swizzle PSP
-    swizzled = bytearray(width*height)
-    for y in range(height):
-        for x in range(width):
-            sid = psp_swizzle_id(x, y, width)
-            swizzled[sid] = linear_indices[y*width + x]
-
-    return swizzled, palette_data
+    return bytes(indices), palette_data

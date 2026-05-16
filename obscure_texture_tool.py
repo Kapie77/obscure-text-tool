@@ -41,7 +41,7 @@ from formats.common.ps2_psp_hvi import parse_ps2_psp_hvi
 from formats.common.ps2_psp_hvi import (
     decode_psp_hvi,
     #parse_ps2_psp_hvi,
-    # encode_psp_hvi
+    encode_psp_hvi
 )
 
 # import .hvi (ps2) #
@@ -224,7 +224,8 @@ if __name__ == "__main__":
             # =========================
             else:
                 palette = data[0x18:0x18+1024]
-                new_pixels = encode_psp_hvi(img, width, height, palette)  # implementa similar ao decode_psp_hvi
+                pixel_data = data[0x18+1024:0x18+1024+width*height]  # índices originais
+                new_pixels, _ = encode_psp_hvi(img, width, height, palette)
 
             # =========================
             # Salva o HVI reconstruído
