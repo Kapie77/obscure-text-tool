@@ -1,6 +1,7 @@
 import sys
 import os
 import argparse
+from PIL import Image # pro rebuild do .hvi de ps2
 
 from utils.binary import read_be_u32
 from utils.binary import read_u32_le
@@ -33,18 +34,20 @@ from formats.ps2.ps2_dic import (
 # import .dic (psp) #
 from formats.psp.psp_dic import rebuild_psp_dic_file
 
-from formats.ps2.ps2_codecs import (
-    # decode
-    decode_ps2_8bpp,
-    decode_ps2_4bpp,
-    decode_ps2_rgba8888,
-    decode_ps2_rgb5551,
+# import .hvi (psp) #
+from formats.common.ps2_psp_hvi import (
+    decode_ps2_hvi,
+    #parse_ps2_psp_hvi,
+    #decode_psp_hvi,
+    # encode_psp_hvi
+)
 
-    # encode
-    encode_ps2_8bpp,
-    encode_ps2_4bpp,
-    encode_ps2_rgba8888,
-    encode_ps2_rgb5551,
+# import .hvi (ps2) #
+from formats.ps2.ps2_codecs_hvi import (
+    decode_ps2_hvi,        # decode HVI
+    encode_ps2_hvi,        # rebuild HVI
+    encode_ps2_8bpp_hvi,   # rebuild HVI 8bpp
+    encode_ps2_4bpp_hvi    # rebuild HVI 4bpp
 )
 
 from formats.psp.psp_dic import parse_psp_dic
@@ -179,6 +182,62 @@ if __name__ == "__main__":
             # Reconstrói usando os PNGs da pasta
             rebuild_xbr(xbr, png_folder, output_file)
 
+            exit(0)
+        
+        # =========================
+        # HVI (PS2 / PSP)
+        # =========================
+        elif ext == ".hvi":
+
+            print("[+] Detected PS2/PSP HVI")
+
+            # Carrega HVI original
+            with open(input_path, "rb") as f:
+                data = f.read()
+
+            width  = int.from_bytes(data[0x0C:0x10], "little")
+            height = int.from_bytes(data[0x10:0x14], "little")
+
+            # detecta plataforma
+            is_psp = width <= 480 and height <= 272
+
+            hvi_name = os.path.splitext(os.path.basename(input_path))[0]
+            png_path = os.path.join(png_folder, hvi_name + ".png")
+
+            if not os.path.isfile(png_path):
+                print(f"[!] PNG not found for rebuild: {png_path}")
+                exit(1)
+
+            # Abre o PNG
+            img = Image.open(png_path).convert("RGBA")
+
+            # =========================
+            # PS2 rebuild
+            # =========================
+            if not is_psp:
+                # usa palette original
+                palette = data[0x18:0x18+1024]
+                new_pixels, new_palette = encode_ps2_8bpp_hvi(img, width, height, palette)
+            
+            # =========================
+            # PSP rebuild
+            # =========================
+            else:
+                palette = data[0x18:0x18+1024]
+                new_pixels = encode_psp_hvi(img, width, height, palette)  # implementa similar ao decode_psp_hvi
+
+            # =========================
+            # Salva o HVI reconstruído
+            # =========================
+            output_file = os.path.join(input_dir, hvi_name + ".new.hvi")
+            with open(output_file, "wb") as f:
+                f.write(data[:0x18])        # header
+                f.write(palette)            # palette
+                f.write(new_pixels)         # pixel data
+                if len(data) > 0x18 + 1024:
+                    f.write(data[0x18+1024:])  # trailer se existir
+
+            print(f"[+] Rebuilt HVI saved: {output_file}")
             exit(0)
 
     # ==========================
