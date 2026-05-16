@@ -23,6 +23,10 @@ rebuild .xbr de xbox = ok
 --
 rebuild .hvt de pc/ps3/xbox 360 = em andamento
 --
+rebuild .hvi de ps2 = ok
+--
+rebuild .hvi de psp = em andamento
+--
 
 # Supported Games
 
