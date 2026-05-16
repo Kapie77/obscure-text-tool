@@ -54,7 +54,7 @@ def unpack_4bpp(raw, pixel_count):
     return out
 
 # ==============================
-#         PS2 UNSWIZZLE
+#         UNSWIZZLE (PS2)
 # ==============================
 def unswizzle_8bpp(data, width, height):
     out = bytearray(width * height)
@@ -67,6 +67,9 @@ def unswizzle_8bpp(data, width, height):
 
     return out
 
+# ==============================
+#         UNSWIZZLE (PSP)
+# ==============================
 def unswizzle_psp(raw, w, h, bpp):
 
     stride = w * bpp // 8
@@ -149,6 +152,9 @@ def decode_ps2_palette(pal, color_count=256):
 
     return colors
 
+# ========================
+#   DECODE 8BPP (.DIC)
+# ========================
 def decode_ps2_8bpp(pixel_data, palette_data, width, height):
 
     img = Image.new("RGBA", (width, height))
@@ -168,6 +174,9 @@ def decode_ps2_8bpp(pixel_data, palette_data, width, height):
 
     return img
 
+# ========================
+#   DECODE 4BPP (.DIC)
+# ========================
 def decode_ps2_4bpp(pixel_data, palette_data, width, height):
 
     img = Image.new("RGBA", (width, height))
@@ -196,6 +205,9 @@ def decode_ps2_4bpp(pixel_data, palette_data, width, height):
 
     return img
 
+# ============================
+#   DECODE RGBA8888 (.DIC)
+# ============================
 def decode_ps2_rgba8888(pixel_data, width, height):
 
     img = Image.new("RGBA", (width, height))
@@ -223,6 +235,9 @@ def decode_ps2_rgba8888(pixel_data, width, height):
 
     return img
 
+# ==========================
+#   DECODE RGBA5551 (.DIC)
+# ==========================
 def decode_ps2_rgb5551(pixel_data, width, height):
 
     img = Image.new("RGBA", (width, height))
@@ -248,7 +263,10 @@ def decode_ps2_rgb5551(pixel_data, width, height):
             pos += 2
 
     return img
-    
+
+# ============================
+#           .HVI
+# ============================
 # ============ PS2 (.hvi) ================ #
 def decode_ps2_hvi(pixel_data, palette_data, width, height):
 
@@ -322,7 +340,7 @@ def decode_psp_hvi(pixels, palette, width, height):
 #        ENCODERS (PS2)
 # ==============================
 
-# ===== RGBA8888 ===== #
+# ===== RGBA8888 (.DIC) ===== #
 def encode_ps2_rgba8888(img, width, height):
 
     pixels = img.convert("RGBA").tobytes()
@@ -343,7 +361,7 @@ def encode_ps2_rgba8888(img, width, height):
 
     return bytes(out)
 
-# ====== RGB5551 ====== #
+# ====== RGB5551 (.DIC) ====== #
 def encode_ps2_rgb5551(img, width, height):
 
     pixels = img.convert("RGBA").load()
@@ -408,7 +426,7 @@ def nearest_palette_index(r, g, b, a, palette):
 
 
 # ==============================
-#          8BPP
+#          8BPP (.DIC)
 # ==============================
 def encode_ps2_8bpp(
     img,
@@ -477,7 +495,7 @@ def encode_ps2_8bpp(
 
 
 # ==============================
-#           4BPP
+#          4BPP (.DIC)
 # ==============================
 def encode_ps2_4bpp(
     img,
