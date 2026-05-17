@@ -27,13 +27,15 @@ rebuild .hvi de ps2 = ok
 --
 rebuild .hvi de psp = ok
 --
+rebuild de .hvt de wii = em andamento
+--
 
 # Supported Games
 
 | Game                     | Status | Platforms                        |
 |--------------------------|:------:|----------------------------------|
 | Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi), Xbox (.xbr)                 |
-| Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.dic), PSP (.dic, .hvi)                |
+| Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.dic, .hvt), PSP (.dic, .hvi)                |
 | Final Exam                |   ✅   | PC Steam (.hvt), Xbox (.hvt), PS3 (.hvt)              |
 
 # ObsCure 1 e 2
