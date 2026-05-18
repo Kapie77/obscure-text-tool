@@ -56,6 +56,13 @@ from formats.ps2.ps2_codecs_hvi import (
 from formats.wii.wii_dic import parse_wii_dic
 from formats.wii.wii_dic import rebuild_wii_dic
 
+# import .hvt (wii) #
+from formats.wii.wii_hvt import (
+    parse_wii_hvt,
+    rebuild_wii_hvt
+)
+
+# import .dic (psp) #
 from formats.psp.psp_dic import parse_psp_dic
 
 from formats.xbox.xbox_xbr import parse_xbox_xbr
@@ -161,6 +168,33 @@ if __name__ == "__main__":
             )
 
             exit(0)
+        
+        # =========================
+        # HVT
+        # =========================
+        elif ext == ".hvt":
+
+            # Final Exam
+            if is_finalexam_hvt(input_path):
+
+                print("[+] Detected Final Exam HVT")
+
+                # aqui futuramente rebuild FE
+                print("[!] Final Exam HVT rebuild not implemented")
+                exit(1)
+
+            # Wii
+            else:
+
+                print("[+] Detected Wii HVT")
+
+                rebuild_wii_hvt(
+                    input_path,
+                    png_folder,
+                    output_file
+                )
+
+                exit(0)
 
         # =========================
         # DIP
@@ -260,9 +294,25 @@ if __name__ == "__main__":
     # HVT (Wii ou Final Exam)
     # =========================
     if ext == ".hvt":
+        # Final Exam
         if is_finalexam_hvt(args.input):
+
             print("[+] Detected Final Exam HVT")
-            parse_finalexam_hvt(args.input, final_out)
+
+            parse_finalexam_hvt(
+                args.input,
+                final_out
+            )
+
+        # Wii
+        else:
+
+            print("[+] Detected Wii HVT")
+
+            parse_wii_hvt(
+                args.input,
+                final_out
+            )
 
     # =================
     # HVI (PS2/PSP)

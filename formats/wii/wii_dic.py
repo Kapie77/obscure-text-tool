@@ -24,7 +24,7 @@ from formats.wii.wii_codecs_dic import (
     encode_c8
 )
 
-from texture_codecs.dxt_codecs_wii_dic import encode_cmpr, decode_cmpr
+from texture_codecs.dxt_codecs_wii_dic_hvt import encode_cmpr, decode_cmpr
 
 # Decoders para extração
 DECODERS = {
