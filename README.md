@@ -42,40 +42,65 @@ rebuild de .hvt de wii = ok
 ## (Wii)
 As texturas neste jogo utilizam o formato nativo do Wii (GX), que armazena imagens em blocos (tiles) em vez de formato linear.
 
+### Arquivos suportados:
+- `.dic`
+- `.hvt`
+
 ### Formatos suportados:
+- **CMPR (S3TW)** – compressão tipo DXT1 usada pelo Wii/GameCube
 - **C4 (4bpp)** – usa paleta de 16 cores
-- **C8 (8bpp)** – usa paleta de 256 cores
-- **RGB5A3** – cor direta com alpha opcional
-- **RGBA8** – cor completa 32-bit
+- **C8 / P8WI (8bpp)** – usa paleta de 256 cores
+- **RGB5A3 / 4443** – cor direta com alpha opcional
+- **IA8 / G8A8** – intensidade + alpha
+- **I8 / GRY8** – grayscale 8-bit
+- **RGBA8 / ARGB** – cor completa 32-bit
 
 ### Características importantes:
 - Texturas são armazenadas em tiles (blocos)
 - Ordem dos pixels não é linear
 - É necessário aplicar um cálculo de offset por tile para reconstruir a imagem
+- Alguns formatos utilizam swizzle específico do hardware do Wii/GameCube
+
+### Layout de tiles:
+Os formatos utilizam diferentes tamanhos de bloco internos:
+
+| BPP | Tile Size |
+|---|---|
+| 4bpp | 8x8 |
+| 8bpp | 8x4 |
+| 16bpp | 4x4 |
+| 32bpp | 4x4 |
 
 ### Paletas:
 - Armazenadas após os dados da textura
-- Formato mais comum: RGB565
+- `.dic` geralmente usa RGB565
+- `.hvt` C8/P8WI utiliza RGB5A3 big-endian
+- Paletas possuem normalmente 256 entradas (512 bytes)
+
+### CMPR (S3TW)
+O formato CMPR utilizado pelo Wii é similar ao DXT1, porém:
+- usa ordem de bytes diferente
+- utiliza layout em superblocos 8x8
+- possui organização específica do GameCube/Wii
+
+Cada superbloco contém:
+- 4 sub-blocos 4x4
+- 8 bytes por sub-bloco
+- 32 bytes totais por tile 8x8
+
+### RGBA32 (ARGB)
+O formato RGBA32 do Wii não é linear:
+- os canais são separados em dois grupos
+- metade do tile contém AR
+- a outra metade contém GB
 
 ### Caso especial: texturas tipo a_medallion
 Algumas texturas (ex: a_medallion001, a_medallion002, fx_npc_die, fx_elec_bolt) utilizam um layout ligeiramente diferente do padrão.
 
 **Diferenças:**
 - Offset dos dados:
-```data_offset = p + 24```
-(em vez de p + 28)
-
-- Formato:
-```GX = 8 (C4)```
-
-- Paleta:
-```RGB565 (pal_format = 1)```
-
-### Observação:
-Decodificação incorreta do layout de tiles resulta em:
-- imagens embaralhadas
-- duplicação
-- artefatos visuais
+```python
+data_offset = p + 24
 
 ## (PC)
 O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armazenam múltiplas texturas com mipmaps, mas diferem principalmente em endianness e ordem de canais de cor.
