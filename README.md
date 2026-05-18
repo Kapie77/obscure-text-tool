@@ -102,6 +102,39 @@ Algumas texturas (ex: a_medallion001, a_medallion002, fx_npc_die, fx_elec_bolt) 
 ```python
 data_offset = p + 24
 ```
+(em vez de p + 28)
+* Formato:
+```python
+GX = 8 (C4)
+```
+* Paleta
+```python
+RGB565 (pal_format = 1)
+```
+
+**HVT (Wii)**
+Os .hvt do Wii possuem:
+* header fixo de 0x18
+* magic:
+```python
+b" IVH"
+```
+
+**Tags de formato HVT**
+| Tag                     | Formato | 
+|--------------------------|:------:|
+| S3TW                |   CMPR  | 
+| G8A8                |   IA8  |
+| GRY8                |   I8  | 
+| 4443                |   RGB5A3  |
+| ARGB                |   RGBA32  |
+| P8WI                |   C8  | 
+
+**Características dos HVT:**
+* largura/altura armazenadas em big-endian
+* bpp armazenado em big-endian
+* podem conter palette + trailer
+* trailers são preservados automaticamente durante rebuild
 
 ## (PC)
 O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armazenam múltiplas texturas com mipmaps, mas diferem principalmente em endianness e ordem de canais de cor.
