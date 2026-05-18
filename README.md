@@ -27,7 +27,7 @@ rebuild .hvi de ps2 = ok
 --
 rebuild .hvi de psp = ok
 --
-rebuild de .hvt de wii = em andamento
+rebuild de .hvt de wii = ok
 --
 
 # Supported Games
