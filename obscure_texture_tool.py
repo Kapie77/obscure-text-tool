@@ -52,8 +52,11 @@ from formats.ps2.ps2_codecs_hvi import (
     encode_ps2_4bpp_hvi    # rebuild HVI 4bpp
 )
 
-from formats.psp.psp_dic import parse_psp_dic
+# import .dic (wii) #
 from formats.wii.wii_dic import parse_wii_dic
+from formats.wii.wii_dic import rebuild_wii_dic
+
+from formats.psp.psp_dic import parse_psp_dic
 
 from formats.xbox.xbox_xbr import parse_xbox_xbr
 from formats.finalexam.finalexam_hvt import parse_finalexam_hvt
@@ -138,8 +141,15 @@ if __name__ == "__main__":
 
             # Wii
             if looks_like_wii_dic(data):
-                print("[+] Wii DIC rebuild not implemented")
-                exit(1)
+                print("[+] Detected Wii DIC, starting rebuild")
+
+                # Reconstrói o DIC Wii
+                rebuild_wii_dic(
+                    input_path,
+                    png_folder,
+                    output_file
+                )
+                exit(0)
 
             # PC
             print("[+] Detected PC DIC")
