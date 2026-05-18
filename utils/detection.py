@@ -153,17 +153,31 @@ def looks_like_psp_dic(data):
 #       DETECTAR WII .DIC
 # ===============================
 def looks_like_wii_dic(data):
-    # Precisa ter pelo menos um header mínimo
-    if len(data) < 16:
+
+    if len(data) < 64:
         return False
 
-    count = int.from_bytes(data[0:4], "big")  # Wii DIC usa big-endian
+    count = read_be_u32(data, 0)
+
     if count <= 0 or count > 4096:
         return False
 
-    # Valida primeiro nome
-    name_len = data[7] if len(data) > 7 else 0
+    name_len = data[7]
+
     if name_len < 1 or name_len > 48:
+        return False
+
+    if 7 + 1 + name_len + 28 >= len(data):
+        return False
+
+    # nome ASCII válido
+    for i in range(name_len):
+        c = data[8 + i]
+        if c < 32 or c >= 127:
+            return False
+
+    # valida primeira entrada inteira
+    if not is_valid_texture_entry(data, 7):
         return False
 
     return True
