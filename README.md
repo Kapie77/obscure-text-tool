@@ -101,6 +101,7 @@ Algumas texturas (ex: a_medallion001, a_medallion002, fx_npc_die, fx_elec_bolt) 
 - Offset dos dados:
 ```python
 data_offset = p + 24
+```
 
 ## (PC)
 O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armazenam múltiplas texturas com mipmaps, mas diferem principalmente em endianness e ordem de canais de cor.
