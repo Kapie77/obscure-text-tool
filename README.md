@@ -17,7 +17,7 @@ rebuild .dic de ps2 = ok
 --
 rebuild .dic de psp = ok
 --
-rebuild .dic de wii = em andamento
+rebuild .dic de wii = ok
 --
 rebuild .xbr de xbox = ok
 --
