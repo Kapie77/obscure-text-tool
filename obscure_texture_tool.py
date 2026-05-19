@@ -87,11 +87,17 @@ from formats.xbox.xbox_codecs import (
 # ==============================
 if __name__ == "__main__":
 
+    # descrição da ferramenta
     parser = argparse.ArgumentParser(description="Obscure Texture Tool CLI")
-    parser.add_argument("input", help="DIC/HVT/XBR/etc. file")
-    parser.add_argument("--rebuild", "-r", help="Page containing edited PNGs for the reconstruction")
+
+    # modos de uso (extração e rebuild)
+    parser.add_argument("mode", choices=["extract", "rebuild"])
+    parser.add_argument("input", help="input file (.dic/.hvt/.xbr/etc)")
+    parser.add_argument("folder", nargs="?", help="folder for PNGs (rebuild only)")
+
     args = parser.parse_args()
 
+    # variaveis
     input_path = args.input
     base, ext = os.path.splitext(os.path.basename(input_path))
     ext = ext.lower()
@@ -101,11 +107,15 @@ if __name__ == "__main__":
     output_file = f"{os.path.join(input_dir, base)}.new{ext}"
 
     # =========================
-    # Rebuild mode
+    # REBUILD MODE
     # =========================
-    if args.rebuild:
+    if args.mode == "rebuild":
 
-        png_folder = args.rebuild
+        png_folder = args.folder
+
+        if not png_folder:
+            print("[!] Missing folder for rebuild")
+            exit(1)
 
         print(f"[+] Rebuild mode, loading PNGs from: {png_folder}")
 
@@ -309,145 +319,148 @@ if __name__ == "__main__":
     # ==========================
     #         EXTRAÇÃO
     # ===========================
-    final_out = os.path.join(input_dir, base)
-    os.makedirs(final_out, exist_ok=True)
-    # =========================
-    # HVT (Wii ou Final Exam)
-    # =========================
-    if ext == ".hvt":
-        # Final Exam
-        if is_finalexam_hvt(args.input):
+    if args.mode == "extract":
 
-            print("[+] Detected Final Exam HVT")
+        final_out = os.path.join(input_dir, base)
+        os.makedirs(final_out, exist_ok=True)
 
-            parse_finalexam_hvt(
-                args.input,
-                final_out
-            )
+        # =========================
+        # HVT (Wii ou Final Exam)
+        # =========================
+        if ext == ".hvt":
+            # Final Exam
+            if is_finalexam_hvt(args.input):
 
-        # Wii
-        else:
+                print("[+] Detected Final Exam HVT")
 
-            print("[+] Detected Wii HVT")
+                parse_finalexam_hvt(
+                    args.input,
+                    final_out
+                )
 
-            parse_wii_hvt(
-                args.input,
-                final_out
-            )
-
-    # =================
-    # HVI (PS2/PSP)
-    # =================
-    elif ext == ".hvi":
-
-        with open(args.input, "rb") as f:
-            magic = f.read(4)
-
-        if magic == b"HVI ":
-
-            print("[+] Detected HVI")
-
-            parse_ps2_psp_hvi(
-                args.input,
-                final_out
-            )
-
-        else:
-            print("[!] Invalid HVI file")
-
-    # =========================
-    # DIC (multi-plataforma)
-    # =========================
-    elif ext == ".dic":
-
-        with open(args.input, "rb") as f:
-            data = f.read()
-
-        # =================================
-        # PS2 (RenderWare)
-        # =================================
-        rw_id = int.from_bytes(data[0:4], "little")
-
-        if rw_id == 0x16:
-
-            print("[+] Detected PS2 DIC")
-
-            parse_ps2_dic(
-                input_path,
-                final_out
-            )
-
-            exit(0)
-
-        # =================================
-        # PSP
-        # =================================
-        if looks_like_psp_dic(data):
-
-            print("[+] Detected PSP DIC")
-
-            parse_psp_dic(
-                input_path,
-                final_out
-            )
-
-            exit(0)
-
-        # =================================
-        # Wii
-        # =================================
-        if len(data) > 64:
-
-            count_be = read_be_u32(data, 0)
-
-            if 0 < count_be < 4096:
-
-                name_len = data[7]
-
-                if 1 <= name_len <= 48:
-
-                    printable = all(
-                        32 <= data[8+i] < 127
-                        for i in range(name_len)
-                    )
-
-                    if printable:
-                        print("[+] Detected Wii DIC")
-                        parse_wii_dic(args.input, final_out)
-                        exit()
-
-        # =================================
-        # PC fallback
-        # =================================
-        print("[+] Detected PC DIC")
-        parse_pc_dic(args.input, final_out)
-        
-    # =========================
-    # XBR (Xbox)
-    # =========================
-    elif ext == ".xbr":
-        with open(args.input, "rb") as f:
-            data = f.read(12)
-
-        if len(data) >= 12:
-            table_size  = int.from_bytes(data[0:4], "little")
-            data_offset = int.from_bytes(data[8:12], "little")
-
-            # heurística básica válida
-            if table_size % 20 == 0 and data_offset > 0:
-                print("[+] Detected Xbox XBR")
-                parse_xbox_xbr(args.input, final_out)
+            # Wii
             else:
-                print("[!] Invalid XBR file")
-        else:
-            print("[!] File too small")
-    
-    # =========================
-    # DIP (PC - Obscure 1)
-    # =========================
-    elif ext == ".dip":
-        print("[+] Detected PC DIP")
-        parse_pc_dip(args.input, final_out)
 
-    else:
-        print("[!] Unknown file type")
+                print("[+] Detected Wii HVT")
+
+                parse_wii_hvt(
+                    args.input,
+                    final_out
+                )
+
+        # =================
+        # HVI (PS2/PSP)
+        # =================
+        elif ext == ".hvi":
+
+            with open(args.input, "rb") as f:
+                magic = f.read(4)
+
+            if magic == b"HVI ":
+
+                print("[+] Detected HVI")
+
+                parse_ps2_psp_hvi(
+                    args.input,
+                    final_out
+                )
+
+            else:
+                print("[!] Invalid HVI file")
+
+        # =========================
+        # DIC (multi-plataforma)
+        # =========================
+        elif ext == ".dic":
+
+            with open(args.input, "rb") as f:
+                data = f.read()
+
+            # =================================
+            # PS2 (RenderWare)
+            # =================================
+            rw_id = int.from_bytes(data[0:4], "little")
+
+            if rw_id == 0x16:
+
+                print("[+] Detected PS2 DIC")
+
+                parse_ps2_dic(
+                    input_path,
+                    final_out
+                )
+
+                exit(0)
+
+            # =================================
+            # PSP
+            # =================================
+            if looks_like_psp_dic(data):
+
+                print("[+] Detected PSP DIC")
+
+                parse_psp_dic(
+                    input_path,
+                    final_out
+                )
+
+                exit(0)
+
+            # =================================
+            # Wii
+            # =================================
+            if len(data) > 64:
+
+                count_be = read_be_u32(data, 0)
+
+                if 0 < count_be < 4096:
+
+                    name_len = data[7]
+
+                    if 1 <= name_len <= 48:
+
+                        printable = all(
+                            32 <= data[8+i] < 127
+                            for i in range(name_len)
+                        )
+
+                        if printable:
+                            print("[+] Detected Wii DIC")
+                            parse_wii_dic(args.input, final_out)
+                            exit()
+
+            # =================================
+            # PC fallback
+            # =================================
+            print("[+] Detected PC DIC")
+            parse_pc_dic(args.input, final_out)
+            
+        # =========================
+        # XBR (Xbox)
+        # =========================
+        elif ext == ".xbr":
+            with open(args.input, "rb") as f:
+                data = f.read(12)
+
+            if len(data) >= 12:
+                table_size  = int.from_bytes(data[0:4], "little")
+                data_offset = int.from_bytes(data[8:12], "little")
+
+                # heurística básica válida
+                if table_size % 20 == 0 and data_offset > 0:
+                    print("[+] Detected Xbox XBR")
+                    parse_xbox_xbr(args.input, final_out)
+                else:
+                    print("[!] Invalid XBR file")
+            else:
+                print("[!] File too small")
+        
+        # =========================
+        # DIP (PC - Obscure 1)
+        # =========================
+        elif ext == ".dip":
+            print("[+] Detected PC DIP")
+            parse_pc_dip(args.input, final_out)
+
+        else:
+            print("[!] Unknown file type")
