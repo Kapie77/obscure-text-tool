@@ -10,41 +10,10 @@
 
 <p align="center">
   <a href="#supported-games">Supported Games</a> •
+  <a href="#how-to-use">How to use</a> •
   <a href="#obscure-1-e-2">ObsCure 1 e 2</a> •
   <a href="#final-exam">Final Exam</a> •
 </p>
-
-Tenha o Python e Pillow instalados, abra o cmd no diretório da ferramenta e digite:
-
-Extract:
-```bash
-python obscure_texture_tool.py NomeDaTextura.Formato(, dic, .dip, .hvt, .hvi ou .xbr)
-```
-
-Rebuild:
-```bash
-python obscure_texture_tool.py NomeDaTextura.Formato --rebuild PastaDasTexturas/
-```
-rebuild de .dip de pc = ok
---
-rebuild .dic de pc = ok
---
-rebuild .dic de ps2 = ok
---
-rebuild .dic de psp = ok
---
-rebuild .dic de wii = ok
---
-rebuild .xbr de xbox = ok
---
-rebuild .hvt de pc/ps3/xbox 360 = ok
---
-rebuild .hvi de ps2 = ok
---
-rebuild .hvi de psp = ok
---
-rebuild de .hvt de wii = ok
---
 
 # Supported Games
 
@@ -53,6 +22,17 @@ rebuild de .hvt de wii = ok
 | Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi), Xbox (.xbr)                 |
 | Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.dic, .hvt), PSP (.dic, .hvi)                |
 | Final Exam                |   ✅   | PC Steam (.hvt), Xbox (.hvt), PS3 (.hvt)              |
+
+# How to use
+Extract:
+```bash
+obscure_texture_tool.py extract NomeDaTextura.Formato(, dic, .dip, .hvt, .hvi ou .xbr)
+```
+
+Rebuild:
+```bash
+obscure_texture_tool.py rebuild NomeDaTextura.Formato PastaDasTexturas/
+```
 
 # ObsCure 1 e 2
 ## (Wii)
