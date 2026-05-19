@@ -26,12 +26,12 @@
 # How to use
 Extract:
 ```bash
-obscure_texture_tool.py extract NomeDaTextura.Formato(, dic, .dip, .hvt, .hvi ou .xbr)
+obscure_texture_tool.exe extract TextureName.Format(, dic, .dip, .hvt, .hvi ou .xbr)
 ```
 
 Rebuild:
 ```bash
-obscure_texture_tool.py rebuild NomeDaTextura.Formato PastaDasTexturas/
+obscure_texture_tool.exe rebuild TextureName.Format TextureFile/
 ```
 
 # ObsCure 1 e 2
