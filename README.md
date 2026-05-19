@@ -296,7 +296,36 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
   - Palette / CLUT
   - Padding (4 bytes)
   - Dados da imagem
-    
+
+## (PSP) .hvt
+**Características**
+- Little-endian
+- Arquivo contém textura única
+- Estrutura simples sem containers RenderWare
+- Dados de imagem armazenados em formato PSP swizzled
+- Alguns arquivos usam CLUT / palettes
+- Compatível com texturas de interface e HUD do ObsCure Final Exam PSP
+- Header compacto com dimensões e formato de pixel
+
+**Formatos de pixel suportados**
+| ID                     | Formato | Descrição                        |
+|--------------------------|:------:|----------------------------------|
+| GU_PSM_T4                | PAL4 | 4 bpp indexed (swizzled) |
+| GU_PSM_T8                | PAL8 | 8 bpp indexed (swizzled) |
+| GU_PSM_8888              | RGBA8888 | 32 bpp linear |
+
+**Notas**
+- Texturas indexed utilizam palettes / CLUT RGBA8888
+- Payload indexed usa swizzle padrão do PSP
+- Swizzle do PSP usa blocos 16x8 bytes
+- RGBA8888 é armazenado linearmente
+- Algumas texturas possuem padding/alinhamento interno
+- Não utiliza RenderWare TXD
+- Estrutura básica:
+  - Header
+  - Palette / CLUT (quando presente)
+  - Dados da imagem
+  
 # Final Exam
 O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jogos Obscure clássicos. Ele armazena texturas standalone com suporte a múltiplas plataformas (PC, PS3, Xbox 360), variando principalmente em endianness, compressão e layout de memória.
 
