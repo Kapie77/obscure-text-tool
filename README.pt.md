@@ -18,7 +18,7 @@
 
 # Jogos Suportados
 
-| Game                     | Status | Platforms                        |
+| Jogo                     | Status | Versões                        |
 |--------------------------|:------:|----------------------------------|
 | Obscure 1                |   ✅   | PC Steam (.dip) GOG (.dip) Retail (.dip), PS2 (.dic, .hvi), Xbox (.xbr)                 |
 | Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.dic, .hvt), PSP (.dic, .hvi)                |
