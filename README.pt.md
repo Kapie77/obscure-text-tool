@@ -175,7 +175,7 @@ O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armaze
 | 25                |   B5G5R5A1  | 16 bpp (1-bit alpha)                |
 
 ## (Xbox)
-As versões de ObsCure para o Xbox clássico utilizam arquivos .xbr como dicionários de textura.
+A versão do ObsCure 1 para o Xbox clássico utiliza arquivos .xbr como dicionários de textura.
 Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue padrões muito próximos do Direct3D da época. O formato .xbr é um texture dictionary usado para armazenar múltiplas texturas em um único arquivo.
 
 ### .xbr
