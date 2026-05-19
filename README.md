@@ -1,3 +1,19 @@
+<h1 align="center">Obscure Texture Tool</h1>
+
+<p align="center">
+  <b>A cross-platform CLI for any version of Obscure 1, Obscure 2, and Final Exam.</b></br>
+</p>
+
+<div align="center">
+
+</div>
+
+<p align="center">
+  <a href="#supported-games">Supported Games</a> •
+  <a href="#obscure-1-e-2">ObsCure 1 e 2</a> •
+  <a href="#final-exam">Final Exam</a> •
+</p>
+
 Tenha o Python e Pillow instalados, abra o cmd no diretório da ferramenta e digite:
 
 Extract:
