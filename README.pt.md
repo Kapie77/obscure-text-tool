@@ -1,8 +1,8 @@
 <h1 align="center">Obscure Texture Tool</h1>
 
 <p align="center">
-  <b>A cross-platform CLI for any version of Obscure 1, Obscure 2, and Final Exam.</b></br>
-  <sub>I created this tool based on Heitor's [ObsCure Texture Editor](https://github.com/HeitorSpectre/ObsCure-Texture-Editor).</sub>
+  <b>Uma CLI multiplataforma para qualquer versão do Obscure 1, Obscure 2 e Final Exam.</b></br>
+  <sub>Eu criei essa ferramenta baseado no [ObsCure Texture Editor](https://github.com/HeitorSpectre/ObsCure-Texture-Editor) de Heitor.</sub>
 </p>
 
 <div align="center">
@@ -10,13 +10,13 @@
 </div>
 
 <p align="center">
-  <a href="#supported-games">Supported Games</a> •
-  <a href="#how-to-use">How to use</a> •
+  <a href="#jogos-suportados">Jogos Suportados</a> •
+  <a href="#como-usar">Como Usar</a> •
   <a href="#obscure-1-e-2">ObsCure 1 e 2</a> •
   <a href="#final-exam">Final Exam</a> •
 </p>
 
-# Supported Games
+# Jogos Suportados
 
 | Game                     | Status | Platforms                        |
 |--------------------------|:------:|----------------------------------|
@@ -24,23 +24,23 @@
 | Obscure 2                |   ✅   | PC Steam (.dic) Retail (.dic), PS2 (.dic, .hvi), Wii (.dic, .hvt), PSP (.dic, .hvi)                |
 | Final Exam                |   ✅   | PC Steam (.hvt), Xbox (.hvt), PS3 (.hvt)              |
 
-# How to use
+# Como Usar
 ## Windows (Drag and Drop)
-**Extract:**
-Drag the *texture file* onto ```obscure_texturetool.exe``` and drop it.
+**Extração:**
+Arraste o *arquivo da texturas* pro ```obscure_texturetool.exe``` e solte.
 
-**Rebuild:**
-Drag the *texture file* and the *extracted folder* onto ```obscure_texturetool.exe``` and drop them there.
+**Reconstrução:**
+Arraste o *arquivo de textura* e a *pasta extraída* pro ```obscure_texturetool.exe``` e solte-os.
 
 ## Linux (CLI)
-**Extract:**
+**Extração:**
 ```bash
-obscure_texture_tool.exe extract TextureName.Format(, dic, .dip, .hvt, .hvi ou .xbr)
+obscure_texture_tool.exe extract NomeDaTextura.Formato(, dic, .dip, .hvt, .hvi ou .xbr)
 ```
 
-**Rebuild:**
+**Reconstrução:**
 ```bash
-obscure_texture_tool.exe rebuild TextureName.Format TextureFile/
+obscure_texture_tool.exe rebuild NomeDaTextura.Formato PastaDaTextura/
 ```
 
 # ObsCure 1 e 2
