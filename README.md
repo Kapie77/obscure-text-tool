@@ -24,12 +24,20 @@
 | Final Exam                |   ✅   | PC Steam (.hvt), Xbox (.hvt), PS3 (.hvt)              |
 
 # How to use
-Extract:
+## Windows (Drag and Drop)
+**Extract:**
+Drag the *texture file* onto ```obscure_texturetool.exe``` and drop it.
+
+**Rebuild:**
+Drag the *texture file* and the *extracted folder* onto ```obscure_texturetool.exe``` and drop them there.
+
+## Linux (CLI)
+**Extract:**
 ```bash
 obscure_texture_tool.exe extract TextureName.Format(, dic, .dip, .hvt, .hvi ou .xbr)
 ```
 
-Rebuild:
+**Rebuild:**
 ```bash
 obscure_texture_tool.exe rebuild TextureName.Format TextureFile/
 ```
