@@ -37,10 +37,18 @@ Drag the *texture file* and the *extracted folder* onto ```obscure_texturetool.e
 ```bash
 obscure_texture_tool.exe extract TextureName.Format(, dic, .dip, .hvt, .hvi ou .xbr)
 ```
+or
+```bash
+./obscure_texture_tool.exe extract TextureName.Format(, dic, .dip, .hvt, .hvi ou .xbr)
+```
 
 **Rebuild:**
 ```bash
 obscure_texture_tool.exe rebuild TextureName.Format TextureFile/
+```
+or
+```bash
+./obscure_texture_tool.exe rebuild TextureName.Format TextureFile/
 ```
 
 # ObsCure 1 e 2
@@ -107,7 +115,7 @@ Some textures (e.g., a_medallion001, a_medallion002, fx_npc_die, fx_elec_bolt) u
 ```python
 data_offset = p + 24
 ```
-(em vez de p + 28)
+(instead of p + 28)
 * Format:
 ```python
 GX = 8 (C4)
@@ -126,7 +134,7 @@ b" IVH"
 ```
 
 **HVT format tags**
-| Tag                     | Formato | 
+| Tag                     | Format | 
 |--------------------------|:------:|
 | S3TW                |   CMPR  | 
 | G8A8                |   IA8  |
@@ -142,7 +150,7 @@ b" IVH"
 * trailers are automatically preserved during a rebuild
 
 ## (PC)
-O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armazenam múltiplas texturas com mipmaps, mas diferem principalmente em endianness e ordem de canais de cor.
+Obscure 1 uses .dip files, and Obscure 2 uses .dic files (texture dictionaries). Both store multiple textures with mipmaps, but they differ mainly in endianness and color channel order.
 
 ### .dic
 **Features**
@@ -153,43 +161,43 @@ O Obscure 1 usa .dip e o Obscure 2 usa .dic (texture dictionaries). Ambos armaze
 - Formato semelhante ao usado em ferramentas como TexDict
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
 | 21                |   R8G8B8A8  | 32 bpp (RGBA)               |
-| 23                |   R5G6B5  | 16 bpp (sem alpha)             |
+| 23                |   R5G6B5  | 16 bpp (without alpha)             |
 | 25                |   R5G5B5A1  | 16 bpp (1-bit alpha)                |
 
 ## .dip
 **Features**
 - Little-endian
-- Estrutura muito semelhante ao .dic
-- Strings em ASCII
-- Usado especificamente no Obscure 1 (PC)
-- Baseado em scripts como fmt_dip.py (Noesis)
+- Structure very similar to .dic
+- ASCII strings
+- Used specifically in Obscure 1 (PC)
+- Based on scripts such as fmt_dip.py (Noesis)
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
 | 21                |   B8G8R8A8  | 32 bpp (BGRA)               |
 | 23                |   B5G6R5  | 16 bpp             |
 | 25                |   B5G5R5A1  | 16 bpp (1-bit alpha)                |
 
 ## (Xbox)
-As versões de ObsCure para o Xbox clássico utilizam arquivos .xbr como dicionários de textura.
-Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue padrões muito próximos do Direct3D da época. O formato .xbr é um texture dictionary usado para armazenar múltiplas texturas em um único arquivo.
+The ObsCure 1 version for the Classic Xbox uses .xbr files as texture dictionaries.
+This format is based directly on the NV2A GPU (derived from NVIDIA) and closely follows the Direct3D standards of the time. The .xbr format is a texture dictionary used to store multiple textures in a single file.
 
 ### .xbr
 **Features**
 - Little-endian
-- Pode conter múltiplas texturas
-- Suporta mipmaps
-- Strings em ASCII
-- Baseado no formato NV2A (Direct3D-like)
-- Usa swizzle Morton (Z-order) em texturas SZ_*
-- Estrutura com descriptors + tabela de nomes + bloco de pixels
+- May contain multiple textures
+- Supports mipmaps
+- ASCII strings
+- Based on the NV2A format (Direct3D-like)
+- Uses Morton swizzling (Z-order) for SZ_* textures
+- Structure consisting of descriptors + name table + pixel block
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
 | 0x05                |   SZ_R5G6B5  | 16 bpp (RGB, swizzled)               |
 | 0x02                |   SZ_A1R5G5B5  | 16 bpp (1-bit alpha, swizzled)             |
@@ -200,29 +208,29 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 | 0x13                |   LU_X8R8G8B8  | 32 bpp (linear)                |
 
 **Unsupported formats (common)**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
-| 0x0C                |   DXT1  | Compressão S3TC               |
-| 0x0E                |   DXT3  | Compressão com alpha             |
-| 0x0F                |   DXT5  | Compressão avançada                |
+| 0x0C                |   DXT1  | S3TC compression               |
+| 0x0E                |   DXT3  | Alpha compression             |
+| 0x0F                |   DXT5  | Advanced compression                |
 
 **Note:**
-- Diferente do PS2, não usa paletas (CLUT)
-- Mais próximo de APIs modernas (Direct3D)
+- Unlike the PS2, it does not use palettes (CLUT)
+- Closer to modern APIs (Direct3D)
 
 ## (PS2) 
 ### .dic
 **Features**
 - Little-endian
-- Baseado em RenderWare TXD
-- Estrutura em chunks (RW_TEXTURE_DICTIONARY, RW_TEXTURE_NATIVE, RW_STRUCT, RW_STRING)
-- Múltiplas texturas por arquivo
-- Texturas indexed usam swizzling PS2 (CSM1)
-- Algumas texturas usam palette RGB5551, outras RGBA8888
-- Alpha de RGBA8888 usa faixa PS2 (0–128)
+- Based on RenderWare TXD
+- Chunk-based structure (RW_TEXTURE_DICTIONARY, RW_TEXTURE_NATIVE, RW_STRUCT, RW_STRING)
+- Multiple textures per file
+- Indexed textures use PS2 swizzling (CSM1)
+- Some textures use RGB5551 palette, others RGBA8888
+- RGBA8888 alpha uses PS2 range (0–128)
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
 | 4                |   PAL4  | 4 bpp indexed (swizzled)               |
 | 8                |   PAL8  | 8 bpp indexed (swizzled)             |
@@ -230,44 +238,44 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 | 32                |   RGBA8888  | 32 bpp linear                |
 
 **Notes**
-- Swizzle usa padrão de VRAM do PS2
-- PAL8 utiliza remap de CLUT (CSM1)
-- PAL4 não utiliza remap de palette
-- Palettes podem existir em:
+- Swizzling follows the PS2 VRAM layout
+- PAL8 uses CLUT remapping (CSM1)
+- PAL4 does not use palette remapping
+- Palettes can be in:
   - RGB5551
   - RGBA8888
-- Alpha RGBA8888 precisa ser multiplicado por 2 ao decodificar
-- Ao reimportar RGBA8888:
-  - alpha precisa voltar para faixa 0–128
-- Estrutura típica:
+- RGBA8888 alpha must be multiplied by 2 when decoding
+- When reimporting RGBA8888:
+  - alpha must be converted back to the 0–128 range
+- Typical structure:
   - RW_TEXTURE_DICTIONARY
     - RW_TEXTURE_NATIVE
-      - RW_STRING (nome)
-      - RW_STRUCT (dados reais da textura)
+      - RW_STRING (name)
+      - RW_STRUCT (actual texture data)
 
 ### .hvi
 **Features**
 - Little-endian
-- Textura única por arquivo
-- Estrutura simples e linear
-- Payload indexed já vem linearizado (sem swizzle)
-- Palette armazenada em BGRA8888
-- Alpha frequentemente usa faixa PS2 reduzida
+- Single texture per file
+- Simple, linear structure
+- Indexed payload is already linearized (no swizzling)
+- Palette stored in BGRA8888
+- Alpha often uses the reduced PS2 range
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
 | 8                |   PAL8  | 8 bpp indexed               |
 | BGRA8888                |   Palette  | CLUT BGRA8888             |
 
 **Notes**
-- Dados indexed não usam swizzling
-- Palette usa ordem BGRA
-- Algumas palettes usam alpha reduzido:
-  - normalmente até 0x80 ou 0x90
-- Ao decodificar:
-  - alpha precisa ser multiplicado por 2 em alguns arquivos
-- Estrutura típica:
+- Indexed data does not use swizzling
+- Palette uses BGRA order
+- Some palettes use reduced alpha:
+  - typically up to 0x80 or 0x90
+- When decoding:
+  - alpha may need to be multiplied by 2 in some files
+- Typical structure:
   - Header
   - Palette BGRA8888
   - Indexed payload linear
@@ -275,141 +283,141 @@ Esse formato é baseado diretamente na GPU NV2A (derivada do NVIDIA), e segue pa
 ## (PSP) .dic
 **Features**
 - Little-endian
-- Múltiplas texturas por arquivo
-- Estrutura sequencial simples (sem chunks RenderWare)
-- Texturas indexadas usam swizzling em blocos PSP
-- Palettes / CLUT armazenadas em RGBA8888
-- Padding fixo de 4 bytes entre palette e imagem
-- Algumas texturas usam RGBA8888 direto (sem palette)
+- Multiple textures per file
+- Simple sequential structure (no RenderWare chunks)
+- Indexed textures use PSP block swizzling
+- Palettes / CLUT stored in RGBA8888
+- Fixed 4-byte padding between palette and image
+- Some textures use direct RGBA8888 (no palette)
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
 | GU_PSM_T4                |   PAL4  | 4 bpp indexed (swizzled)  |
 | GU_PSM_T8                |   PAL8  | 8 bpp indexed (swizzled)  |
 | 32               |   RGBA8888  | 32 bpp linear  |
 
 **Notes**
-- Texturas indexed usam CLUT RGBA8888
-- Payload indexed é armazenado em ordem swizzled do PSP
-- Swizzle usa blocos 16x8 bytes
-- Existe padding de 4 bytes após a palette, mesmo quando palette_size = 0
-- RGBA8888 não usa swizzling
-- Não utiliza RenderWare TXD (diferente do PS2)
-- Estrutura básica:
-  - Header da textura
+- Indexed textures use RGBA8888 CLUT
+- Indexed payload is stored in PSP swizzled order
+- Swizzle uses 16×8 byte blocks
+- There is 4-byte padding after the palette, even when palette_size = 0
+- Direct RGBA8888 textures do not use swizzling
+- Does not use RenderWare TXD (unlike PS2)
+- Typical structure:
+  - Texture header
   - Palette / CLUT
   - Padding (4 bytes)
-  - Dados da imagem
+  - Image data
 
 ## (PSP) .hvt
 **Features**
 - Little-endian
-- Arquivo contém textura única
-- Estrutura simples sem containers RenderWare
-- Dados de imagem armazenados em formato PSP swizzled
-- Alguns arquivos usam CLUT / palettes
-- Compatível com texturas de interface e HUD do ObsCure Final Exam PSP
-- Header compacto com dimensões e formato de pixel
+- Single texture per file
+- Simple structure without RenderWare containers
+- Image data stored in PSP swizzled format
+- Some files use CLUT / palettes
+- Compatible with ObsCure Final Exam PSP interface and HUD textures
+- Compact header containing dimensions and pixel format
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
 | GU_PSM_T4                | PAL4 | 4 bpp indexed (swizzled) |
 | GU_PSM_T8                | PAL8 | 8 bpp indexed (swizzled) |
 | GU_PSM_8888              | RGBA8888 | 32 bpp linear |
 
 **Notes**
-- Texturas indexed utilizam palettes / CLUT RGBA8888
-- Payload indexed usa swizzle padrão do PSP
-- Swizzle do PSP usa blocos 16x8 bytes
-- RGBA8888 é armazenado linearmente
-- Algumas texturas possuem padding/alinhamento interno
-- Não utiliza RenderWare TXD
-- Estrutura básica:
+- Indexed textures use RGBA8888 palettes / CLUT
+- Indexed payload uses PSP standard swizzle
+- PSP swizzle uses 16×8 byte blocks
+- RGBA8888 textures are stored linearly
+- Some textures include internal padding / alignment
+- Does not use RenderWare TXD
+- Typical structure:
   - Header
   - Palette / CLUT (quando presente)
-  - Dados da imagem
+  - Image data
   
 # Final Exam
-O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jogos Obscure clássicos. Ele armazena texturas standalone com suporte a múltiplas plataformas (PC, PS3, Xbox 360), variando principalmente em endianness, compressão e layout de memória.
+The Final Exam uses the .hvt format (HydraVision modern), which is different from the one used in the classic Obscure games. It stores standalone textures with multi-platform support (PC, PS3, Xbox 360), varying mainly in endianness, compression, and memory layout.
 
 ## (PC) .hvt
 **Features**
 - Little-endian
-- Textura única por arquivo
-- Suporta mipmaps
-- Header baseado em chunks (HEAD, DATA)
-- Formatos de pixel identificados por tags ASCII (invertidas em alguns casos)
-- Estrutura moderna comparada aos formatos antigos da HydraVision
+- Single texture per file
+- Supports mipmaps
+- Header structured in chunks (HEAD, DATA)
+- Pixel formats identified by ASCII tags (sometimes inverted)
+- Modern structure compared to older HydraVision formats
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
-| BGRA                |   BGRA  | 32 bpp (linear, com alpha)               |
-| BGRX                |   BGRX  | 32 bpp (alpha forçado opaco)             |
-| 1TXD                |   DXT1 (BC1)  | 4 bpp (compressão sem alpha ou 1-bit alpha)                |
-| 3TXD                |   DXT3 (BC2)  | 8 bpp (alpha explícito 4-bit)                |
-| 5TXD                |   DXT5 (BC3)  | 8 bpp (alpha interpolado)                |
+| BGRA                |   BGRA  | 32 bpp (linear, with alpha)               |
+| BGRX                |   BGRX  | 32 bpp (alpha forced opaque)             |
+| 1TXD                |   DXT1 (BC1)  | 4 bpp (compression without alpha or 1-bit alpha)                |
+| 3TXD                |   DXT3 (BC2)  | 8 bpp (explicit 4-bit alpha)                |
+| 5TXD                |   DXT5 (BC3)  | 8 bpp (interpolated alpha)                |
 
 **Notes**
-- Tags como 1TXD, 3TXD, 5TXD são DXT1/3/5 invertidos (armazenados ao contrário no PC)
-- Dados BC (DXT) são armazenados em little-endian padrão de PC
-- Não há swizzling ou tiling (diferente do Xbox 360)
-- BGRX ignora o canal alpha (sempre tratado como 255)
-- Estrutura usa:
-  - HEAD → metadados
-  - DATA → dados da textura (mip0 primeiro)
+- Tags like 1TXD, 3TXD, 5TXD correspond to DXT1/3/5 but stored reversed (little-endian on PC)
+- BC (DXT) data is stored in standard PC little-endian
+- No swizzling or tiling (unlike Xbox 360)
+- BGRX ignores the alpha channel (always treated as 255)
+- Structure layout:
+  - HEAD → metadata
+  - DATA → texture data (mip0 first)
  
 ## (Xbox) .hvt
 **Features**
 - Big-endian
-- Textura única por arquivo
-- Suporta mipmaps
-- Header baseado em chunks (HEAD, X360, DATA)
-- Usa tiling (swizzle de GPU) obrigatório
-- Requer byte swap (16-bit) antes do decode
-- Estrutura semelhante ao PS3, mas com layout de memória diferente (tiled)
-- Dados podem conter padding (alinhamento)
+- Single texture per file
+- Supports mipmaps
+- Header based on chunks (HEAD, X360, DATA)
+- Uses GPU tiling (swizzle) mandatory
+- Requires 16-bit byte swap before decoding
+- Layout similar to PS3, but memory is tiled differently
+- Data may contain padding/alignment
 
 **Supported pixel formats**
-| ID                     | Formato | Descrição                        |
+| ID                     | Format | Description                        |
 |--------------------------|:------:|----------------------------------|
-| DXT1 / 1TXD                |   DXT1 (BC1)  | 4 bpp (compressão sem alpha ou 1-bit alpha)               |
-| DXT3 / 3TXD                |   DXT3 (BC2)  | 8 bpp (alpha explícito 4-bit)             |
-| DXT5 / 5TXD                |   DXT5 (BC3)  | 8 bpp (alpha interpolado)                |
-| ARGB                |   ARGB  | 32 bpp (com alpha)                |
+| DXT1 / 1TXD                |   DXT1 (BC1)  | 4 bpp (compression without alpha or 1-bit alpha)               |
+| DXT3 / 3TXD                |   DXT3 (BC2)  | 8 bpp (explicit 4-bit alpha)             |
+| DXT5 / 5TXD                |   DXT5 (BC3)  | 8 bpp (interpolated alpha)                |
+| ARGB                |   ARGB  | 32 bpp (with alpha)                |
 
 **Notes**
 
-**Diferente do PC:**
-- ✔ PC = dados lineares
-- ❗ X360 = dados tiled (swizzled)
+**Different from PC:**
+- ✔ PC = linear data
+- ❗ X360 = tiled (swizzled) data
   
-**Texturas precisam passar por:**
-- unswizzle (reorganização de memória GPU)
+**Textures need to go through:**
+- unswizzle (GPU memory reordering)
 - byte swap (endianness)
   
-**Alinhamento obrigatório:**
-- BC (DXT): múltiplos de 128 pixels
-- ARGB: múltiplos de 32 pixels
+**Mandatory alignment:**
+- BC (DXT): multiples of 128 pixels
+- ARGB: multiples of 32 pixels
   
-**Após decodificação, é necessário:**
-- remover padding (crop) para o tamanho original
+**After decoding, you must:**
+- remove padding (crop) to original size
   
-**Dados BC usam blocos padrão (DXT), mas:**
-- ❗ não estão em ordem linear
-**Alguns arquivos podem conter:**
-- bytes extras após o mip0
+**BC data uses standard DXT blocks, but:**
+- ❗ not stored in linear order
+**Some files may contain**
+- extra bytes after mip0
   
-**Estrutura interna:**
-- HEAD → metadados
-- X360 → configuração GPU (tiling)
-- DATA → dados da textura
+**Internal structure:**
+- HEAD → metadata
+- X360 → GPU configuration (tiling)
+- DATA → texture data
   
-**Tags podem aparecer como:**
-- DXT1 / DXT5 (normal)
-- 1TXD / 5TXD (variação)
+**Tags may appear as:**
+- DXT1 / DXT5 (standard)
+- 1TXD / 5TXD (variant)
 
 # How to make a tool like this
 To create a tool for extracting and rebuilding textures from old games, you need to determine information about the textures, such as: pixel format, endianness type, swizzling type, palette endianness, etc. To do this, you can use tools such as [ImageHeat](https://github.com/bartlomiejduda/ImageHeat), MummGGTool (MummRa's Graphic Tool) and hex editors (such as [ImHex](https://github.com/WerWolv/ImHex), for example).
