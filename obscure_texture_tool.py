@@ -83,39 +83,87 @@ from formats.xbox.xbox_codecs import (
 )
 
 # ==============================
+#      DETECTAÇÃO DE MODO 
+#  (DRAG AND DROP OU COMANDO)
+# ===============================
+def detect_args(argv):
+    """
+    Suporte:
+    - drag file -> extract
+    - drag file + folder -> rebuild
+    - CLI: extract/rebuild file folder
+    """
+
+    args = [a.strip().strip('"') for a in argv[1:]]
+
+    if len(args) == 0:
+        return None
+
+    # CLI tradicional
+    if args[0] in ["extract", "rebuild"]:
+        mode = args[0]
+        input_path = args[1] if len(args) > 1 else None
+        folder = args[2] if len(args) > 2 else None
+        return mode, input_path, folder
+
+    # drag & drop / auto mode
+    if len(args) == 1:
+        return "extract", args[0], None
+
+    if len(args) == 2:
+
+        a, b = args
+
+        if os.path.isdir(a) and os.path.isfile(b):
+            return "rebuild", b, a
+
+        if os.path.isfile(a) and os.path.isdir(b):
+            return "rebuild", a, b
+
+        # fallback
+        return "rebuild", a, b
+
+    return None
+
+
+# ==============================
 #           CLI
 # ==============================
 if __name__ == "__main__":
 
-    # descrição da ferramenta
-    parser = argparse.ArgumentParser(description="Obscure Texture Tool CLI")
+    parsed = detect_args(sys.argv)
 
-    # modos de uso (extração e rebuild)
-    parser.add_argument("mode", choices=["extract", "rebuild"])
-    parser.add_argument("input", help="input file (.dic/.hvt/.xbr/etc)")
-    parser.add_argument("folder", nargs="?", help="folder for PNGs (rebuild only)")
+    if not parsed:
+        print("""
+Usage:
+  extract file.ext
+  rebuild file.ext folder/
+  OR drag & drop:
+  - file -> extract
+  - file + folder -> rebuild
+""")
+        sys.exit(0)
 
-    args = parser.parse_args()
+    mode, input_path, folder = parsed
 
-    # variaveis
-    input_path = args.input
+    if not input_path:
+        print("[!] Missing input file")
+        sys.exit(1)
+
     base, ext = os.path.splitext(os.path.basename(input_path))
     ext = ext.lower()
     input_dir = os.path.dirname(input_path)
 
-    # arquivo rebuild padrão: mesmo nome + .new antes da extensão
-    output_file = f"{os.path.join(input_dir, base)}.new{ext}"
-
     # =========================
     # REBUILD MODE
     # =========================
-    if args.mode == "rebuild":
+    if mode == "rebuild":
 
-        png_folder = args.folder
+        png_folder = folder
 
         if not png_folder:
             print("[!] Missing folder for rebuild")
-            exit(1)
+            sys.exit(1)
 
         print(f"[+] Rebuild mode, loading PNGs from: {png_folder}")
 
@@ -145,7 +193,7 @@ if __name__ == "__main__":
                         output_file
                     )
 
-                    exit(0)
+                    sys.exit(0)
 
             # PSP
             # === psp (.dic) ==== #
@@ -159,7 +207,7 @@ if __name__ == "__main__":
                     output_file
                 )
 
-                exit(0)
+                sys.exit(0)
 
             # Wii
             if looks_like_wii_dic(data):
@@ -171,7 +219,7 @@ if __name__ == "__main__":
                     png_folder,
                     output_file
                 )
-                exit(0)
+                sys.exit(0)
 
             # PC
             print("[+] Detected PC DIC")
@@ -182,7 +230,7 @@ if __name__ == "__main__":
                 output_file
             )
 
-            exit(0)
+            sys.exit(0)
         
         # =========================
         # HVT
@@ -204,7 +252,7 @@ if __name__ == "__main__":
                 if not os.path.isfile(png_path):
 
                     print(f"[!] PNG not found for rebuild: {png_path}")
-                    exit(1)
+                    sys.exit(1)
 
                 rebuild_finalexam_hvt(
                     input_path,
@@ -212,7 +260,7 @@ if __name__ == "__main__":
                     output_file
                 )
 
-                exit(0)
+                sys.exit(0)
 
             # Wii
             else:
@@ -225,7 +273,7 @@ if __name__ == "__main__":
                     output_file
                 )
 
-                exit(0)
+                sys.exit(0)
 
         # =========================
         # DIP
@@ -240,7 +288,7 @@ if __name__ == "__main__":
                 output_file
             )
 
-            exit(0)
+            sys.exit(0)
 
         # =========================
         # XBR
@@ -257,7 +305,7 @@ if __name__ == "__main__":
             # Reconstrói usando os PNGs da pasta
             rebuild_xbr(xbr, png_folder, output_file)
 
-            exit(0)
+            sys.exit(0)
         
         # =========================
         # HVI (PS2 / PSP)
@@ -281,7 +329,7 @@ if __name__ == "__main__":
 
             if not os.path.isfile(png_path):
                 print(f"[!] PNG not found for rebuild: {png_path}")
-                exit(1)
+                sys.exit(1)
 
             # Abre o PNG
             img = Image.open(png_path).convert("RGBA")
@@ -314,12 +362,12 @@ if __name__ == "__main__":
                     f.write(data[0x18+1024:])  # trailer se existir
 
             print(f"[+] Rebuilt HVI saved: {output_file}")
-            exit(0)
+            sys.exit(0)
 
     # ==========================
     #         EXTRAÇÃO
     # ===========================
-    if args.mode == "extract":
+    elif mode == "extract":
 
         final_out = os.path.join(input_dir, base)
         os.makedirs(final_out, exist_ok=True)
@@ -329,12 +377,12 @@ if __name__ == "__main__":
         # =========================
         if ext == ".hvt":
             # Final Exam
-            if is_finalexam_hvt(args.input):
+            if is_finalexam_hvt(input_path):
 
                 print("[+] Detected Final Exam HVT")
 
                 parse_finalexam_hvt(
-                    args.input,
+                    input_path,
                     final_out
                 )
 
@@ -344,7 +392,7 @@ if __name__ == "__main__":
                 print("[+] Detected Wii HVT")
 
                 parse_wii_hvt(
-                    args.input,
+                    input_path,
                     final_out
                 )
 
@@ -353,7 +401,7 @@ if __name__ == "__main__":
         # =================
         elif ext == ".hvi":
 
-            with open(args.input, "rb") as f:
+            with open(input_path, "rb") as f:
                 magic = f.read(4)
 
             if magic == b"HVI ":
@@ -361,7 +409,7 @@ if __name__ == "__main__":
                 print("[+] Detected HVI")
 
                 parse_ps2_psp_hvi(
-                    args.input,
+                    input_path,
                     final_out
                 )
 
@@ -373,7 +421,7 @@ if __name__ == "__main__":
         # =========================
         elif ext == ".dic":
 
-            with open(args.input, "rb") as f:
+            with open(input_path, "rb") as f:
                 data = f.read()
 
             # =================================
@@ -390,7 +438,7 @@ if __name__ == "__main__":
                     final_out
                 )
 
-                exit(0)
+                sys.exit(0)
 
             # =================================
             # PSP
@@ -404,7 +452,7 @@ if __name__ == "__main__":
                     final_out
                 )
 
-                exit(0)
+                sys.exit(0)
 
             # =================================
             # Wii
@@ -426,20 +474,20 @@ if __name__ == "__main__":
 
                         if printable:
                             print("[+] Detected Wii DIC")
-                            parse_wii_dic(args.input, final_out)
-                            exit()
+                            parse_wii_dic(input_path, final_out)
+                            sys.exit(0)
 
             # =================================
             # PC fallback
             # =================================
             print("[+] Detected PC DIC")
-            parse_pc_dic(args.input, final_out)
+            parse_pc_dic(input_path, final_out)
             
         # =========================
         # XBR (Xbox)
         # =========================
         elif ext == ".xbr":
-            with open(args.input, "rb") as f:
+            with open(input_path, "rb") as f:
                 data = f.read(12)
 
             if len(data) >= 12:
@@ -449,7 +497,7 @@ if __name__ == "__main__":
                 # heurística básica válida
                 if table_size % 20 == 0 and data_offset > 0:
                     print("[+] Detected Xbox XBR")
-                    parse_xbox_xbr(args.input, final_out)
+                    parse_xbox_xbr(input_path, final_out)
                 else:
                     print("[!] Invalid XBR file")
             else:
@@ -460,7 +508,7 @@ if __name__ == "__main__":
         # =========================
         elif ext == ".dip":
             print("[+] Detected PC DIP")
-            parse_pc_dip(args.input, final_out)
+            parse_pc_dip(input_path, final_out)
 
         else:
             print("[!] Unknown file type")
