@@ -65,8 +65,13 @@ from formats.wii.wii_hvt import (
 # import .dic (psp) #
 from formats.psp.psp_dic import parse_psp_dic
 
+# import .hvt (pc/ps3/xbox 360) do final exam #
+from formats.finalexam.finalexam_hvt import (
+    parse_finalexam_hvt,
+    rebuild_finalexam_hvt
+)
+
 from formats.xbox.xbox_xbr import parse_xbox_xbr
-from formats.finalexam.finalexam_hvt import parse_finalexam_hvt
 from formats.xbox.xbox_xbr import XbrFile
 
 # encode do .xbr de xbox
@@ -179,9 +184,25 @@ if __name__ == "__main__":
 
                 print("[+] Detected Final Exam HVT")
 
-                # aqui futuramente rebuild FE
-                print("[!] Final Exam HVT rebuild not implemented")
-                exit(1)
+                hvt_name = os.path.splitext(os.path.basename(input_path))[0]
+
+                png_path = os.path.join(
+                    png_folder,
+                    hvt_name + ".png"
+                )
+
+                if not os.path.isfile(png_path):
+
+                    print(f"[!] PNG not found for rebuild: {png_path}")
+                    exit(1)
+
+                rebuild_finalexam_hvt(
+                    input_path,
+                    png_path,
+                    output_file
+                )
+
+                exit(0)
 
             # Wii
             else:

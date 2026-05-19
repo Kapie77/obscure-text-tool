@@ -2,19 +2,35 @@ import os
 
 from PIL import Image
 
-from texture_codecs.dxt_codecs import (
+from texture_codecs.dxt_codecs_finalexam import ( 
+    # encoders
+    encode_dxt1,
+    encode_dxt3,
+    encode_dxt5,
+
+    # decoders
     decode_dxt1,
     decode_dxt3,
     decode_dxt5,
+
+    # others
     compute_mip0_size
 )
 
 from .finalexam_codecs import (
+    # encoders
+    encode_bgra,
+    encode_bgrx,
+    encode_argb_be,
+    encode_rgba,
+    encode_ps3_swizzled_rgba,
+
+    # decoders
     decode_bgra,
     decode_bgrx,
     decode_argb_be,
     decode_rgba,
-    decode_rgba_ps3_swizzled
+    decode_ps3_swizzled_rgba
 )
 
 # =========================================
@@ -37,6 +53,10 @@ def save_png(raw_bgra, width, height, path):
     img = Image.frombytes("RGBA", (width, height), bytes(rgba))
     img.save(path)
 
+def load_png_rgba(path):
+    img = Image.open(path).convert("RGBA")
+    return img.width, img.height, img.tobytes()
+    
 def crop_rgba(img, w, h, aligned_w):
     out = bytearray(w * h * 4)
     for y in range(h):
@@ -95,6 +115,9 @@ def x360_tiled_y(block_offset, width_in_blocks, texel_pitch):
     return macro + micro + ((offset_tile & 0x10) >> 4)
 
 
+# ======================
+#       UNSWIZZLE
+# ======================
 def x360_unswizzle(data, width, height, block_size, texel_pitch):
     wb = width // block_size
     hb = height // block_size
@@ -121,6 +144,34 @@ def x360_unswizzle(data, width, height, block_size, texel_pitch):
 
     return out
 
+# ======================
+#        SWIZZLE
+# ======================
+def x360_swizzle(data, width, height, block_size, texel_pitch):
+    wb = width // block_size
+    hb = height // block_size
+
+    padded_wb = (wb + 31) & ~31
+    padded_hb = (hb + 31) & ~31
+
+    total = padded_wb * padded_hb
+
+    out = bytearray(total * texel_pitch)
+
+    for i in range(total):
+        x = x360_tiled_x(i, padded_wb, texel_pitch)
+        y = x360_tiled_y(i, padded_wb, texel_pitch)
+
+        if x >= wb or y >= hb:
+            continue
+
+        src = (y * wb + x) * texel_pitch
+        dst = i * texel_pitch
+
+        if src + texel_pitch <= len(data):
+            out[dst:dst+texel_pitch] = data[src:src+texel_pitch]
+
+    return out
 
 def crop_image(data, src_w, dst_w, dst_h):
     out = bytearray(dst_w * dst_h * 4)
@@ -132,6 +183,9 @@ def crop_image(data, src_w, dst_w, dst_h):
 
     return out
 
+# ======================
+#       EXTRAÇÃO
+# ======================
 def parse_finalexam_hvt(path, out_dir):
     with open(path, "rb") as f:
         data = f.read()
@@ -286,7 +340,7 @@ def parse_finalexam_hvt(path, out_dir):
                 # single mip ARGB = linear RGBA
 
                 if mipmaps > 1:
-                    img = decode_rgba_ps3_swizzled(raw, width, height)
+                    img = decode_ps3_swizzled_rgba(raw, width, height)
                 else:
                     img = decode_rgba(raw, width, height)
 
@@ -306,3 +360,227 @@ def parse_finalexam_hvt(path, out_dir):
     print(f"[+] Saving: {out_path}")
 
     save_png(img, width, height, out_path)
+
+# ======================
+#       REBUILD
+# ======================
+def rebuild_finalexam_hvt(original_path, png_path, output_path):
+
+    with open(original_path, "rb") as f:
+        data = bytearray(f.read())
+
+    def read_u32(off, be):
+        return int.from_bytes(data[off:off+4], "big" if be else "little")
+
+    # =========================
+    # HEADER
+    # =========================
+    magic = data[0:4]
+    is_be = (magic == b" IVH")
+
+    format_tag = data[0x14:0x18].decode("ascii", errors="ignore")
+
+    width  = read_u32(0x18, is_be)
+    height = read_u32(0x1C, is_be)
+    mipmaps = read_u32(0x28, is_be)
+
+    # =========================
+    # PLATFORM
+    # =========================
+    if magic == b"HVI ":
+        platform = "PC"
+
+    else:
+        arch = data[0x24:0x28]
+
+        if arch == b"X360":
+            platform = "X360"
+        else:
+            platform = "PS3"
+
+    # =========================
+    # OFFSETS / MIP SIZE
+    # =========================
+    if platform == "X360":
+
+        is_bc = format_tag in [
+            "DXT1", "1TXD",
+            "DXT3", "3TXD",
+            "DXT5", "5TXD"
+        ]
+
+        tile_texel = 4 if is_bc else 1
+        align_texels = 32 * tile_texel
+
+        aligned_w = align(width, align_texels)
+        aligned_h = align(height, align_texels)
+
+        mip0_size = compute_mip0_size(
+            aligned_w,
+            aligned_h,
+            format_tag
+        )
+
+        pixel_offset = 0x84
+
+    else:
+
+        mip0_size = read_u32(0x3C, is_be)
+        pixel_offset = 0x40
+
+    # =========================
+    # LOAD PNG
+    # =========================
+    width_png, height_png, rgba = load_png_rgba(png_path)
+
+    if width_png != width or height_png != height:
+        raise ValueError(
+            f"PNG size mismatch: expected {width}x{height}, got {width_png}x{height_png}"
+        )
+
+    # =====================================================
+    # X360
+    # =====================================================
+    if platform == "X360":
+
+        is_bc = format_tag in [
+            "DXT1", "1TXD",
+            "DXT3", "3TXD",
+            "DXT5", "5TXD"
+        ]
+
+        tile_texel = 4 if is_bc else 1
+        align_texels = 32 * tile_texel
+
+        aligned_w = align(width, align_texels)
+        aligned_h = align(height, align_texels)
+
+        # -------------------------------------------------
+        # DXT
+        # -------------------------------------------------
+        if format_tag in ["1TXD", "DXT1", "3TXD", "DXT3", "5TXD", "DXT5"]:
+
+            padded = bytearray(aligned_w * aligned_h * 4)
+
+            for y in range(aligned_h):
+                sy = min(y, height - 1)
+
+                for x in range(aligned_w):
+                    sx = min(x, width - 1)
+
+                    src = (sy * width + sx) * 4
+                    dst = (y * aligned_w + x) * 4
+
+                    padded[dst:dst+4] = rgba[src:src+4]
+
+            if format_tag in ["1TXD", "DXT1"]:
+                encoded = encode_dxt1(padded, aligned_w, aligned_h)
+                block_bytes = 8
+
+            elif format_tag in ["3TXD", "DXT3"]:
+                encoded = encode_dxt3(padded, aligned_w, aligned_h)
+                block_bytes = 16
+
+            else:
+                encoded = encode_dxt5(padded, aligned_w, aligned_h)
+                block_bytes = 16
+
+            encoded = x360_byte_swap(encoded)
+
+            encoded = x360_swizzle(
+                encoded,
+                aligned_w,
+                aligned_h,
+                4,
+                block_bytes
+            )
+
+        # -------------------------------------------------
+        # ARGB
+        # -------------------------------------------------
+        elif format_tag == "ARGB":
+
+            padded = bytearray(aligned_w * aligned_h * 4)
+
+            for y in range(aligned_h):
+                sy = min(y, height - 1)
+
+                for x in range(aligned_w):
+                    sx = min(x, width - 1)
+
+                    src = (sy * width + sx) * 4
+                    dst = (y * aligned_w + x) * 4
+
+                    padded[dst:dst+4] = rgba[src:src+4]
+
+            encoded = encode_argb_be(
+                padded,
+                aligned_w,
+                aligned_h
+            )
+
+            encoded = x360_byte_swap(encoded)
+
+            encoded = x360_swizzle(
+                encoded,
+                aligned_w,
+                aligned_h,
+                1,
+                4
+            )
+
+        else:
+            raise ValueError(f"Unsupported X360 format: {format_tag}")
+
+    # =====================================================
+    # PC / PS3
+    # =====================================================
+    else:
+
+        if format_tag == "BGRA":
+            encoded = encode_bgra(rgba, width, height)
+
+        elif format_tag == "BGRX":
+            encoded = encode_bgrx(rgba, width, height)
+
+        elif format_tag in ["1TXD", "DXT1"]:
+            encoded = encode_dxt1(rgba, width, height)
+
+        elif format_tag in ["3TXD", "DXT3"]:
+            encoded = encode_dxt3(rgba, width, height)
+
+        elif format_tag in ["5TXD", "DXT5"]:
+            encoded = encode_dxt5(rgba, width, height)
+
+        elif format_tag == "ARGB":
+
+            if platform == "PS3":
+
+                if mipmaps > 1:
+                    encoded = encode_ps3_swizzled_rgba(rgba, width, height)
+                else:
+                    encoded = encode_rgba(rgba, width, height)
+
+            else:
+                encoded = encode_argb_be(rgba, width, height)
+
+        else:
+            raise ValueError(f"Unsupported format: {format_tag}")
+
+    # =====================================================
+    # SIZE CHECK
+    # =====================================================
+    if len(encoded) != mip0_size:
+        raise ValueError(
+            f"Encoded mip0 mismatch: got {len(encoded)}, expected {mip0_size}"
+        )
+
+    # =====================================================
+    # REPLACE MIP0
+    # =====================================================
+    data[pixel_offset:pixel_offset + mip0_size] = encoded
+
+    with open(output_path, "wb") as f:
+        f.write(data)
+
+    print(f"[+] Saved rebuilt HVT: {output_path}")

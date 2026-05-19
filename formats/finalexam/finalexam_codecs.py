@@ -1,10 +1,3 @@
-# ========================================
-#       FINAL EXAM TEXTURE CODECS
-# ========================================
-
-from PIL import Image
-
-
 # =========================================================
 #                     PC CODECS
 # =========================================================
@@ -147,7 +140,7 @@ def morton_index_rect(x, y, width, height):
 # Swizzled using Morton order.
 # Converted internally to BGRA.
 # =========================================================
-def decode_rgba_ps3_swizzled(raw, width, height):
+def decode_ps3_swizzled_rgba(raw, width, height):
     out = bytearray(width * height * 4)
     for y in range(height):
         for x in range(width):
@@ -176,10 +169,38 @@ def encode_ps3_swizzled_rgba(rgba, width, height):
     return bytes(out)
 
 # =========================================================
-#             PS3 ARGB Helpers (for CLI rebuild)
-# =========================================================
-def EncodePs3Argb(rgba, width, height, swizzled=False):
-    if swizzled:
-        return encode_ps3_swizzled_rgba(rgba, width, height)
-    else:
-        return encode_rgba(rgba, width, height)
+
+def encode_bgra(rgba, width, height):
+
+    out = bytearray(width * height * 4)
+
+    for i in range(width * height):
+
+        r = rgba[i*4 + 0]
+        g = rgba[i*4 + 1]
+        b = rgba[i*4 + 2]
+        a = rgba[i*4 + 3]
+
+        out[i*4 + 0] = b
+        out[i*4 + 1] = g
+        out[i*4 + 2] = r
+        out[i*4 + 3] = a
+
+    return bytes(out)
+
+def encode_bgrx(rgba, width, height):
+
+    out = bytearray(width * height * 4)
+
+    for i in range(width * height):
+
+        r = rgba[i*4 + 0]
+        g = rgba[i*4 + 1]
+        b = rgba[i*4 + 2]
+
+        out[i*4 + 0] = b
+        out[i*4 + 1] = g
+        out[i*4 + 2] = r
+        out[i*4 + 3] = 0xFF
+
+    return bytes(out)
