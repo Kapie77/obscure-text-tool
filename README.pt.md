@@ -14,6 +14,7 @@
   <a href="#como-usar">Como Usar</a> •
   <a href="#obscure-1-e-2">ObsCure 1 e 2</a> •
   <a href="#final-exam">Final Exam</a> •
+  <a href="#como-fazer-uma-ferramenta-igual">Como fazer uma ferramenta igual</a> •
 </p>
 
 # Jogos Suportados
