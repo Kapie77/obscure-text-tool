@@ -37,7 +37,7 @@ rebuild .dic de wii = ok
 --
 rebuild .xbr de xbox = ok
 --
-rebuild .hvt de pc/ps3/xbox 360 = em andamento
+rebuild .hvt de pc/ps3/xbox 360 = ok
 --
 rebuild .hvi de ps2 = ok
 --
