@@ -2,6 +2,7 @@
 
 <p align="center">
   <b>A cross-platform CLI for any version of Obscure 1, Obscure 2, and Final Exam.</b></br>
+  <sub>I created this tool based on Heitor's [ObsCure Texture Editor](https://github.com/HeitorSpectre/ObsCure-Texture-Editor).</sub>
 </p>
 
 <div align="center">
@@ -409,3 +410,6 @@ O Final Exam usa o formato .hvt (HydraVision modern), diferente do usado nos jog
 **Tags podem aparecer como:**
 - DXT1 / DXT5 (normal)
 - 1TXD / 5TXD (variação)
+
+# Como fazer uma ferramenta igual
+Para fazer uma ferramenta de extração e rebuild de texturas de jogos antigos você precisa descobrir informações das texturas como: pixel format, endianess type, swizzling type, palette endianess, etc. Para isso você pode usar ferramentas como [ImageHeat](https://github.com/bartlomiejduda/ImageHeat), MummGGTool (MummRa's Graphic Tool) e editores hexadecimal (como ImHex, por exemplo).
